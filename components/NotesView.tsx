@@ -4,7 +4,20 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlanner } from "@/lib/store";
 import { Note } from "@/lib/types";
+import { renderMarkdown } from "@/lib/markdown";
 import { Button, Field, inputClass } from "./primitives";
+import { NotesGraph } from "./NotesGraph";
+
+// PrismJS imports for syntax highlighting
+import Prism from "prismjs";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-cpp";
+import "prismjs/components/prism-java";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-bash";
 
 export function NotesView() {
   const state = usePlanner();
@@ -17,19 +30,45 @@ export function NotesView() {
   const tracks = state.tracks ?? [];
   const activeNoteId = state.activeNoteId;
   const setActiveNoteId = state.setActiveNoteId;
+  const codeTheme = state.codeTheme ?? "midnight";
+  const setCodeTheme = state.setCodeTheme;
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"editor" | "graph">("editor");
   const [search, setSearch] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [newFolderInput, setNewFolderInput] = useState("");
   const [folders, setFolders] = useState<string[]>(["General", "DSA", "Backend", "System Design"]);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Editor/Preview tab state
+  const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
 
   // Slash command popup states
   const [slashIndex, setSlashIndex] = useState<number | null>(null);
   const [slashCoords, setSlashCoords] = useState({ top: 0, left: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-save visual indicator status states
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerSaveIndicator = () => {
+    setSaveStatus("saving");
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      setSaveStatus("saved");
+    }, 1200);
+  };
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Sync state activeNoteId selection changes from TodayView or GoalsView
   useEffect(() => {
@@ -50,6 +89,17 @@ export function NotesView() {
   const activeNote = useMemo(() => {
     return notes.find((n) => n.id === activeId) ?? null;
   }, [notes, activeId]);
+
+  // Trigger Prism highlighting whenever notes preview tab is shown, content changes, or theme changes.
+  useEffect(() => {
+    if (editorTab === "preview") {
+      // Small timeout to let the DOM settle before Prism scans it
+      const timer = setTimeout(() => {
+        Prism.highlightAll();
+      }, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [editorTab, activeNote?.content, activeNote?.id, codeTheme]);
 
   // Auto-map folder names to track IDs by fuzzy-matching folder name against track name/tag
   const folderToTrackId = useMemo(() => {
@@ -128,12 +178,17 @@ export function NotesView() {
     return groups;
   }, [tasksForFolder, days]);
 
-  // Editor/Preview tab state
-  const [editorTab, setEditorTab] = useState<"write" | "preview">("write");
+
 
   const handleSetActiveNote = (id: string | null) => {
     setActiveId(id);
     setActiveNoteId(id);
+  };
+
+  // Opening a note from the graph flips back to the editor with it active.
+  const handleOpenNoteFromGraph = (id: string) => {
+    handleSetActiveNote(id);
+    setViewMode("editor");
   };
 
   // Task-selection handler: auto-create or navigate to the note for the selected task
@@ -200,181 +255,59 @@ export function NotesView() {
     }
   };
 
-  // Helper to render Markdown Table rows to HTML
-  const renderTableHTML = (rows: string[]) => {
-    const cells = rows.map((r) =>
-      r
-        .split("|")
-        .map((cell) => cell.trim())
-        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-    );
-    if (cells.length === 0) return "";
-
-    const headers = cells[0];
-    const hasDivider = cells[1] && cells[1].every((cell) => cell.startsWith("-"));
-    const dataRows = hasDivider ? cells.slice(2) : cells.slice(1);
-
-    let html = '<div class="overflow-x-auto my-3"><table class="w-full text-left text-xs border-collapse border border-coffee/20 rounded-sm">';
-    
-    // Header
-    html += '<thead class="bg-coffee/10 border-b border-coffee/20"><tr>';
-    headers.forEach((h) => {
-      html += `<th class="p-2 font-mono font-bold text-espresso">${h}</th>`;
-    });
-    html += "</tr></thead>";
-
-    // Body
-    html += '<tbody class="divide-y divide-coffee/10 bg-cream-base/30">';
-    dataRows.forEach((row) => {
-      html += "<tr>";
-      row.forEach((cell) => {
-        html += `<td class="p-2 text-espresso font-mono">${cell}</td>`;
-      });
-      html += "</tr>";
-    });
-    html += "</tbody></table></div>";
-    return html;
-  };
-
-  // Line-by-line Markdown parsing
-  const renderMarkdown = (text: string) => {
-    if (!text) return '<p class="text-coffee-soft italic">Start typing markdown here...</p>';
-
-    const lines = text.split("\n");
-    let inCode = false;
-    let inTable = false;
-    let tableRows: string[] = [];
-    const parsedLines: string[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      let line = lines[i];
-
-      // Escape raw HTML tags
-      line = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-      // Code blocks: ```code```
-      if (line.trim().startsWith("```")) {
-        inCode = !inCode;
-        if (inCode) {
-          parsedLines.push('<pre class="bg-espresso text-cream-raised p-3 text-[11px] rounded-sm font-mono overflow-x-auto my-3 border border-coffee/20 leading-relaxed"><code>');
-        } else {
-          parsedLines.push("</code></pre>");
-        }
-        continue;
-      }
-
-      if (inCode) {
-        parsedLines.push(line);
-        continue;
-      }
-
-      // Markdown Tables
-      if (line.trim().startsWith("|")) {
-        if (!inTable) {
-          inTable = true;
-          tableRows = [];
-        }
-        tableRows.push(line);
-        continue;
-      } else if (inTable) {
-        inTable = false;
-        parsedLines.push(renderTableHTML(tableRows));
-        tableRows = [];
-      }
-
-      // Obsidian/Notion Callout Blocks: > [!NOTE] Callout content
-      if (line.trim().startsWith("&gt; [!")) {
-        const match = line.match(/&gt; \[\!(NOTE|WARNING|TIP|IMPORTANT)\](.*)/i);
-        if (match) {
-          const type = match[1].toUpperCase();
-          const content = match[2].trim();
-          const colors: Record<string, string> = {
-            NOTE: "border-olive bg-olive/[0.04] text-olive-deep",
-            WARNING: "border-clay bg-clay/[0.04] text-clay-deep",
-            TIP: "border-coffee bg-coffee/[0.04] text-espresso",
-            IMPORTANT: "border-accent bg-accent/[0.04] text-accent",
-          };
-          const colorClass = colors[type] || "border-coffee bg-coffee/[0.04] text-espresso";
-          parsedLines.push(`<div class="border-l-4 p-3 rounded-r-sm text-xs my-3 ${colorClass}"><strong>${type}</strong>: ${content || "(Callout)"}</div>`);
-          continue;
-        }
-      }
-
-      // Standard Blockquotes: > quote content
-      if (line.trim().startsWith("&gt;")) {
-        const content = line.substring(line.indexOf("&gt;") + 4).trim();
-        parsedLines.push(`<blockquote class="border-l-4 border-coffee/20 bg-coffee/[0.02] pl-3 py-1.5 text-xs text-coffee italic my-2">${content}</blockquote>`);
-        continue;
-      }
-
-      // Header 1: # Title
-      if (line.trim().startsWith("# ")) {
-        parsedLines.push(`<h1 class="font-display text-lg sm:text-xl font-extrabold text-espresso mt-5 mb-2 border-b border-coffee/15 pb-1">${line.substring(2)}</h1>`);
-        continue;
-      }
-
-      // Header 2: ## Subtitle
-      if (line.trim().startsWith("## ")) {
-        parsedLines.push(`<h2 class="font-display text-sm sm:text-base font-bold text-espresso mt-4 mb-1.5">${line.substring(3)}</h2>`);
-        continue;
-      }
-
-      // Checklist tasks: - [ ] and - [x]
-      if (line.trim().startsWith("- [ ] ")) {
-        parsedLines.push(`<div class="flex items-center gap-2 text-xs py-1 text-espresso"><input type="checkbox" disabled class="accent-olive pointer-events-none" /> <span>${line.substring(6)}</span></div>`);
-        continue;
-      }
-      if (line.trim().startsWith("- [x] ")) {
-        parsedLines.push(`<div class="flex items-center gap-2 text-xs py-1 text-coffee-soft"><input type="checkbox" checked disabled class="accent-olive pointer-events-none" /> <span class="line-through">${line.substring(6)}</span></div>`);
-        continue;
-      }
-
-      // Unordered lists: - item
-      if (line.trim().startsWith("- ")) {
-        parsedLines.push(`<li class="text-xs text-espresso leading-relaxed ml-4 list-disc py-0.5">${line.substring(2)}</li>`);
-        continue;
-      }
-
-      // Horizontal dividers: ---
-      if (line.trim() === "---") {
-        parsedLines.push('<hr class="border-t border-coffee/15 my-4" />');
-        continue;
-      }
-
-      // Regular paragraph
-      parsedLines.push(line.trim() ? `<p class="text-xs sm:text-[13.5px] leading-relaxed text-espresso my-1">${line}</p>` : "");
-    }
-
-    if (inTable && tableRows.length > 0) {
-      parsedLines.push(renderTableHTML(tableRows));
-    }
-
-    let parsedHtml = parsedLines.join("\n");
-
-    // Inline elements styling replacements
-    parsedHtml = parsedHtml.replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>");
-    parsedHtml = parsedHtml.replace(/\*([\s\S]+?)\*/g, "<em>$1</em>");
-    parsedHtml = parsedHtml.replace(/`([^`]+)`/g, '<code class="bg-coffee/10 text-espresso text-[11px] px-1 rounded-sm font-mono">$1</code>');
-    parsedHtml = parsedHtml.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-olive-deep underline font-bold hover:text-olive transition-colors">$1</a>');
-
-    // Wikilinks navigation resolution
-    parsedHtml = parsedHtml.replace(/\[\[([\s\S]+?)\]\]/g, (match, title) => {
-      const targetNote = notes.find((n) => n.title.toLowerCase() === title.trim().toLowerCase());
-      if (targetNote) {
-        return `<span class="underline text-olive-deep font-bold cursor-pointer hover:text-olive transition-colors inline-block" data-note-id="${targetNote.id}">📄 ${title}</span>`;
-      }
-      return `<span class="text-clay font-mono italic select-none" title="Note does not exist yet. Create it to link.">[[${title} (Broken Link)]]</span>`;
-    });
-
-    return parsedHtml;
-  };
-
-  // Preview click handler mapping for wikilinks
+  // Preview click handler mapping for wikilinks, copy buttons, and interactive checkboxes
   const handlePreviewClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    
+    // Handle Wikilinks
     const targetId = target.getAttribute("data-note-id");
     if (targetId) {
       handleSetActiveNote(targetId);
+      return;
+    }
+
+    // Handle Copy Code Button
+    if (target.classList.contains("copy-code-btn")) {
+      const container = target.closest(".code-block-container");
+      const code = container?.querySelector("code");
+      if (code) {
+        const codeText = code.textContent || "";
+        navigator.clipboard.writeText(codeText).then(() => {
+          target.textContent = "Copied!";
+          target.classList.add("text-olive-deep");
+          setTimeout(() => {
+            target.textContent = "Copy";
+            target.classList.remove("text-olive-deep");
+          }, 2000);
+        }).catch((err) => {
+          console.error("Clipboard copy failed: ", err);
+        });
+      }
+      return;
+    }
+
+    // Handle Preview Todo Checkbox Toggle
+    if (target.classList.contains("preview-todo-checkbox")) {
+      const checkbox = target as HTMLInputElement;
+      const lineIndexStr = checkbox.getAttribute("data-line-index");
+      if (lineIndexStr !== null && activeNote) {
+        const lineIndex = parseInt(lineIndexStr, 10);
+        const lines = activeNote.content.split("\n");
+        const line = lines[lineIndex];
+        
+        // Toggle the markdown checkbox syntax
+        if (line.trim().startsWith("- [ ] ")) {
+          lines[lineIndex] = line.replace("- [ ] ", "- [x] ");
+        } else if (line.trim().startsWith("- [x] ")) {
+          lines[lineIndex] = line.replace("- [x] ", "- [ ] ");
+        } else if (line.trim().startsWith("- [X] ")) {
+          lines[lineIndex] = line.replace("- [X] ", "- [ ] ");
+        }
+        
+        // Save back to state and trigger saving status indicator
+        updateNote(activeNote.id, { content: lines.join("\n") });
+        triggerSaveIndicator();
+      }
     }
   };
 
@@ -385,6 +318,7 @@ export function NotesView() {
     const cursor = e.target.selectionStart;
 
     updateNote(activeNote.id, { content: val });
+    triggerSaveIndicator();
 
     const lastChar = val[cursor - 1];
     if (lastChar === "/") {
@@ -401,21 +335,142 @@ export function NotesView() {
     }
   };
 
+  // Keyboard listener to intercept Tab/Shift+Tab for custom indentation
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      if (!activeNote) return;
+
+      const textarea = e.currentTarget;
+      const content = activeNote.content;
+      const cursor = textarea.selectionStart;
+
+      // Find the start of the current line
+      const lastNewline = content.lastIndexOf("\n", cursor - 1);
+      const lineStart = lastNewline === -1 ? 0 : lastNewline + 1;
+
+      let updatedContent = "";
+      let newCursorPos = cursor;
+
+      if (!e.shiftKey) {
+        // Indent: Add 2 spaces at the beginning of the line
+        const beforeLine = content.substring(0, lineStart);
+        const restOfContent = content.substring(lineStart);
+        updatedContent = `${beforeLine}  ${restOfContent}`;
+        newCursorPos = cursor + 2;
+      } else {
+        // Outdent: Remove up to 2 spaces from the start of the line
+        const beforeLine = content.substring(0, lineStart);
+        const restOfLine = content.substring(lineStart);
+        let spacesToRemove = 0;
+        if (restOfLine.startsWith("  ")) {
+          spacesToRemove = 2;
+        } else if (restOfLine.startsWith(" ")) {
+          spacesToRemove = 1;
+        }
+        updatedContent = beforeLine + restOfLine.substring(spacesToRemove);
+        newCursorPos = Math.max(lineStart, cursor - spacesToRemove);
+      }
+
+      updateNote(activeNote.id, { content: updatedContent });
+      triggerSaveIndicator();
+
+      // Maintain cursor position and focus
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 10);
+    }
+  };
+
   const handleInsertSlashOption = (syntax: string) => {
     if (!activeNote || !textareaRef.current || slashIndex === null) return;
 
-    const before = activeNote.content.substring(0, slashIndex - 1);
-    const after = activeNote.content.substring(slashIndex);
+    const textarea = textareaRef.current;
+    const content = activeNote.content;
+    const cursor = textarea.selectionStart;
+
+    // Handle Indent / Outdent
+    if (syntax === "indent" || syntax === "outdent") {
+      const beforeSlash = content.substring(0, slashIndex - 1);
+      const afterSlash = content.substring(slashIndex);
+      const contentWithoutSlash = `${beforeSlash}${afterSlash}`;
+
+      const adjustedCursor = cursor - 1;
+      const adjLastNewline = contentWithoutSlash.lastIndexOf("\n", adjustedCursor - 1);
+      const adjLineStart = adjLastNewline === -1 ? 0 : adjLastNewline + 1;
+
+      let updatedContent = "";
+      let newCursorPos = adjustedCursor;
+
+      if (syntax === "indent") {
+        const lineText = contentWithoutSlash.substring(adjLineStart);
+        updatedContent = contentWithoutSlash.substring(0, adjLineStart) + "  " + lineText;
+        newCursorPos = adjustedCursor + 2;
+      } else {
+        const restOfLine = contentWithoutSlash.substring(adjLineStart);
+        let spacesToRemove = 0;
+        if (restOfLine.startsWith("  ")) {
+          spacesToRemove = 2;
+        } else if (restOfLine.startsWith(" ")) {
+          spacesToRemove = 1;
+        }
+        updatedContent = contentWithoutSlash.substring(0, adjLineStart) + restOfLine.substring(spacesToRemove);
+        newCursorPos = Math.max(adjLineStart, adjustedCursor - spacesToRemove);
+      }
+
+      updateNote(activeNote.id, { content: updatedContent });
+      triggerSaveIndicator();
+      setSlashIndex(null);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 50);
+      return;
+    }
+
+    // Default Insert blocks
+    const before = content.substring(0, slashIndex - 1);
+    const after = content.substring(slashIndex);
     const updatedContent = `${before}${syntax}${after}`;
 
     updateNote(activeNote.id, { content: updatedContent });
+    triggerSaveIndicator();
     setSlashIndex(null);
+
+    let selStart = before.length + syntax.length;
+    let selEnd = before.length + syntax.length;
+
+    // Custom selection ranges for placeholders
+    if (syntax === "**Bold**") {
+      selStart = before.length + 2;
+      selEnd = before.length + 6;
+    } else if (syntax === "*Italic*") {
+      selStart = before.length + 1;
+      selEnd = before.length + 7;
+    } else if (syntax === "```\n\n```") {
+      selStart = before.length + 3;
+      selEnd = before.length + 3;
+    } else if (syntax === "\n**Example 1:**\n  Input: \n  Output: \n  Explanation: \n") {
+      selStart = before.length + 25;
+      selEnd = before.length + 25;
+    } else if (syntax === "\n**Constraints:**\n- `1 <= s.length <= 10^4`\n") {
+      selStart = before.length + 21;
+      selEnd = before.length + 43;
+    } else if (syntax === "[Title](url)") {
+      selStart = before.length + 1;
+      selEnd = before.length + 6;
+    } else if (syntax === "\n> [!NOTE]\n> Content\n") {
+      selStart = before.length + 14;
+      selEnd = before.length + 21;
+    }
 
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const nextPos = before.length + syntax.length;
-        textareaRef.current.setSelectionRange(nextPos, nextPos);
+        textareaRef.current.setSelectionRange(selStart, selEnd);
       }
     }, 50);
   };
@@ -432,7 +487,37 @@ export function NotesView() {
   }, [activeNote, days]);
 
   return (
-    <div className="reveal flex items-stretch gap-0 min-h-[520px]">
+    <div className="reveal flex flex-col gap-3">
+
+      {/* ── Mode toggle: Editor / Graph ───────────────────────── */}
+      <div className="flex items-center gap-0.5 border border-coffee/25 bg-cream-raised rounded-sm p-0.5 self-start shadow-sm">
+        {([
+          { id: "editor", label: "✏️ Editor" },
+          { id: "graph", label: "🕸 Graph" },
+        ] as const).map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setViewMode(m.id)}
+            className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-sm transition-colors ${
+              viewMode === m.id
+                ? "bg-espresso text-cream-raised shadow-sm"
+                : "text-coffee hover:text-espresso hover:bg-coffee/5"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {viewMode === "graph" ? (
+        <NotesGraph
+          notes={notes}
+          tasks={tasks}
+          days={days}
+          onOpenNote={handleOpenNoteFromGraph}
+        />
+      ) : (
+      <div className="flex items-stretch gap-0 min-h-[520px]">
 
       {/* ── Push Sidebar ──────────────────────────────────────── */}
       <motion.div
@@ -596,19 +681,27 @@ export function NotesView() {
                 <input
                   type="text"
                   value={activeNote.title}
-                  onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
+                  onChange={(e) => {
+                    updateNote(activeNote.id, { title: e.target.value });
+                    triggerSaveIndicator();
+                  }}
                   placeholder="Note Title"
                   className="font-display text-xl font-extrabold tracking-tightest text-espresso bg-transparent border-b border-transparent hover:border-coffee/15 focus:border-coffee focus:outline-none w-full sm:w-2/3 pb-0.5 transition-colors"
                 />
-                <button
-                  onClick={() => {
-                    deleteNote(activeNote.id);
-                    handleSetActiveNote(notes.find((n) => n.id !== activeNote.id)?.id ?? null);
-                  }}
-                  className="text-xs font-bold text-clay-deep hover:underline select-none shrink-0"
-                >
-                  🗑 Delete Page
-                </button>
+                <div className="flex items-center gap-3 shrink-0 select-none">
+                  <span className="text-[10px] font-mono text-coffee-soft transition-opacity duration-200">
+                    {saveStatus === "saving" ? "● Saving..." : "✓ Saved"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      deleteNote(activeNote.id);
+                      handleSetActiveNote(notes.find((n) => n.id !== activeNote.id)?.id ?? null);
+                    }}
+                    className="text-xs font-bold text-clay-deep hover:underline"
+                  >
+                    🗑 Delete Page
+                  </button>
+                </div>
               </div>
 
               {/* Linking selectors (Folder, Task, Day) */}
@@ -726,8 +819,35 @@ export function NotesView() {
                 >
                   👁️ Preview
                 </button>
-                <div className="flex-grow bg-cream-deep/30 px-3 py-2 text-right">
-                  <span className="text-[9px] font-mono text-coffee-soft">{"Type '/' for blocks · [[Title]] for links"}</span>
+                <div className="flex-grow bg-cream-deep/30 px-3 py-2 flex items-center justify-end gap-3 h-full">
+                  {editorTab === "preview" && (
+                    <div className="flex items-center gap-1.5 border border-coffee/20 rounded-sm p-0.5 bg-cream-base text-[10px] font-mono select-none">
+                      <span className="text-coffee-soft px-1">Theme:</span>
+                      <button
+                        onClick={() => setCodeTheme("editorial")}
+                        className={`px-1.5 py-0.5 rounded-sm transition-all font-bold ${
+                          codeTheme === "editorial"
+                            ? "bg-espresso text-cream-raised shadow-sm"
+                            : "text-coffee hover:text-espresso"
+                        }`}
+                      >
+                        Editorial
+                      </button>
+                      <button
+                        onClick={() => setCodeTheme("midnight")}
+                        className={`px-1.5 py-0.5 rounded-sm transition-all font-bold ${
+                          codeTheme === "midnight"
+                            ? "bg-espresso text-cream-raised shadow-sm"
+                            : "text-coffee hover:text-espresso"
+                        }`}
+                      >
+                        Midnight
+                      </button>
+                    </div>
+                  )}
+                  <span className="text-[9px] font-mono text-coffee-soft hidden sm:inline">
+                    {"Type '/' for blocks · [[Title]] for links"}
+                  </span>
                 </div>
               </div>
 
@@ -739,6 +859,7 @@ export function NotesView() {
                       ref={textareaRef}
                       value={activeNote.content}
                       onChange={handleTextareaChange}
+                      onKeyDown={handleTextareaKeyDown}
                       placeholder={"Start writing notes for \"" + activeNote.title + "\"...\n\nUse markdown:\n# Heading\n- Bullet point\n- [ ] Checklist item\n```code block```\n> [!NOTE] Callout\n[[Link to another note]]"}
                       className="w-full flex-grow p-5 bg-transparent text-sm font-mono leading-[1.8] text-espresso focus:outline-none resize-none min-h-[400px]"
                     />
@@ -754,7 +875,21 @@ export function NotesView() {
                         </div>
                         {[
                           { label: "H1 Header", syntax: "# ", hint: "#" },
-                          { label: "H2 Subheader", syntax: "## ", hint: "##" },
+                          { label: "H2 Subheading", syntax: "## ", hint: "##" },
+                          { label: "H3 Subheading", syntax: "### ", hint: "###" },
+                          { label: "Bold Text", syntax: "**Bold**", hint: "**bold**" },
+                          { label: "Italic Text", syntax: "*Italic*", hint: "*italic*" },
+                          { label: "Indent Line", syntax: "indent", hint: "Tab" },
+                          { label: "Outdent Line", syntax: "outdent", hint: "Shift+Tab" },
+                          { label: "LeetCode Example", syntax: "\n**Example 1:**\n  Input: \n  Output: \n  Explanation: \n", hint: "/ex" },
+                          { label: "Constraints List", syntax: "\n**Constraints:**\n- `1 <= s.length <= 10^4`\n", hint: "/const" },
+                          { label: "Complexity Analysis", syntax: "\n**Complexity Analysis:**\n- **Time Complexity:** `O(N)`\n- **Space Complexity:** `O(1)`\n", hint: "/comp" },
+                          { label: "Easy Badge", syntax: "`Easy` ", hint: "/easy" },
+                          { label: "Medium Badge", syntax: "`Medium` ", hint: "/medium" },
+                          { label: "Hard Badge", syntax: "`Hard` ", hint: "/hard" },
+                          { label: "Solution (Python)", syntax: "```python\ndef solve(self):\n    pass\n```", hint: "/py" },
+                          { label: "Solution (Java)", syntax: "```java\npublic class Solution {\n    // code\n}\n```", hint: "/java" },
+                          { label: "Solution (C++)", syntax: "```cpp\nclass Solution {\npublic:\n    // code\n};\n```", hint: "/cpp" },
                           { label: "Checklist", syntax: "- [ ] ", hint: "- [ ]" },
                           { label: "Code Block", syntax: "```\n\n```", hint: "```" },
                           { label: "Inline Code", syntax: "`code`", hint: "`code`" },
@@ -779,7 +914,7 @@ export function NotesView() {
                 ) : (
                   <div
                     onClick={handlePreviewClick}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNote.content) }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(activeNote.content, { codeTheme, notes }) }}
                     className="flex-grow p-5 overflow-y-auto prose max-w-none text-sm leading-[1.8] select-text"
                   />
                 )}
@@ -818,6 +953,8 @@ export function NotesView() {
           </div>
         )}
       </div>
+      </div>
+      )}
 
       {/* Add Folder Modal */}
       {showFolderModal && (

@@ -1,7 +1,6 @@
 "use client";
 
-import { motion, MotionConfig } from "framer-motion";
-import Link from "next/link";
+import { MotionConfig } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { usePlanner } from "@/lib/store";
 import { TodayView } from "./TodayView";
@@ -9,24 +8,27 @@ import { GoalsView } from "./GoalsView";
 import { ProgressView } from "./ProgressView";
 import { FocusView } from "./FocusView";
 import { NotesView } from "./NotesView";
+import { MentorView } from "./MentorView";
 import { BackupPanel } from "./BackupPanel";
 import { Modal } from "./primitives";
 import { ThemeToggle } from "./ThemeToggle";
 import { AccountabilitySync } from "./AccountabilitySync";
 import { ViewTransition } from "./transitions/ViewTransition";
+import { DockNav } from "./DockNav";
+import { CommandPalette } from "./CommandPalette";
+import { ShortcutsOverlay } from "./ShortcutsOverlay";
+import { ToastProvider } from "./system/Toaster";
+import { CelebrationProvider } from "./system/Celebration";
+import { useGlobalShortcuts } from "@/lib/useGlobalShortcuts";
 import { playTurn } from "@/lib/sound";
+import { useMentorStore } from "@/lib/mentorStore";
 
-type View = "today" | "goals" | "progress" | "focus" | "notes";
+type View = "today" | "goals" | "progress" | "focus" | "notes" | "mentor";
 
-const NAV: { id: View; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "goals", label: "Goals" },
-  { id: "progress", label: "Progress" },
-  { id: "focus", label: "Focus" },
-  { id: "notes", label: "Notes" },
-];
+const ORDER: View[] = ["today", "goals", "progress", "focus", "notes", "mentor"];
 
-const ORDER: View[] = ["today", "goals", "progress", "focus", "notes"];
+import { FDETopicDrawer } from "./system/FDETopicDrawer";
+import { StaffMasterclassDeck } from "./system/StaffMasterclassDeck";
 
 export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
   const hasHydrated = usePlanner((s) => s.hasHydrated);
@@ -34,38 +36,84 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
   const view = usePlanner((s) => (s.activeView as View) ?? "today");
   const setView = usePlanner((s) => s.setActiveView);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [staffDeck, setStaffDeck] = useState<{ topicId: string | null; customTitle?: string }>({ topicId: null });
   const prevView = useRef<View>("today");
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => setMounted(true), []);
   const ready = mounted && hasHydrated;
 
+  useEffect(() => {
+    const handleOpenTopic = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTopicId(customEvent.detail);
+      }
+    };
+    const handleOpenStaffMasterclass = (e: Event) => {
+      const customEvent = e as CustomEvent<{ topicId: string; title?: string }>;
+      if (customEvent.detail?.topicId) {
+        setStaffDeck({ topicId: customEvent.detail.topicId, customTitle: customEvent.detail.title });
+      }
+    };
+
+    const handleOpenAIMentor = (e: Event) => {
+      const customEvent = e as CustomEvent<{ topicId?: string; title?: string; day?: number }>;
+      if (customEvent.detail?.topicId) {
+        useMentorStore.getState().setActiveTopic(customEvent.detail.topicId, {
+          id: customEvent.detail.topicId,
+          title: customEvent.detail.title,
+          sprintDay: customEvent.detail.day,
+        });
+      }
+      changeView("mentor");
+    };
+
+    window.addEventListener("open-fde-topic", handleOpenTopic);
+    window.addEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+    window.addEventListener("open-ai-mentor", handleOpenAIMentor);
+    return () => {
+      window.removeEventListener("open-fde-topic", handleOpenTopic);
+      window.removeEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+      window.removeEventListener("open-ai-mentor", handleOpenAIMentor);
+    };
+  }, []);
+
   const changeView = (next: View) => {
     if (next === view) return;
     prevView.current = view;
     setView(next);
-    playTurn(); // no-op unless interface cues are enabled
-    // Move focus into the freshly-revealed view for keyboard/SR users.
+    playTurn();
     requestAnimationFrame(() => mainRef.current?.focus());
   };
+
+  useGlobalShortcuts({
+    openPalette: () => setPaletteOpen(true),
+    toggleShortcuts: () => setShortcutsOpen((v) => !v),
+    changeView,
+  });
 
   const direction: 1 | -1 =
     ORDER.indexOf(view) >= ORDER.indexOf(prevView.current) ? 1 : -1;
 
   return (
     <MotionConfig reducedMotion="user">
+    <ToastProvider>
+    <CelebrationProvider>
     <div className="min-h-screen">
       <Header
-        view={view}
-        setView={changeView}
         onBackup={() => setBackupOpen(true)}
+        onCommand={() => setPaletteOpen(true)}
         replayIntro={replayIntro}
       />
 
       <main
         ref={mainRef}
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl px-5 pb-24 pt-8 sm:px-8 focus:outline-none"
+        className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 focus:outline-none"
       >
         {!ready ? (
           <Skeleton />
@@ -76,85 +124,94 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
             {view === "progress" && <ProgressView />}
             {view === "focus" && <FocusView />}
             {view === "notes" && <NotesView />}
+            {view === "mentor" && <MentorView />}
           </ViewTransition>
         )}
       </main>
+
+      {/* Global Slide-Over FDE Deck Drawer */}
+      <FDETopicDrawer
+        topicId={activeTopicId}
+        onClose={() => setActiveTopicId(null)}
+        onSelectTopic={(nextId) => setActiveTopicId(nextId)}
+      />
+
+      {/* SpaceX / OpenAI Staff Engineer Masterclass Deck */}
+      <StaffMasterclassDeck
+        topicId={staffDeck.topicId}
+        customTitle={staffDeck.customTitle}
+        onClose={() => setStaffDeck({ topicId: null })}
+      />
 
       <Modal open={backupOpen} onClose={() => setBackupOpen(false)} title="Backup & data">
         <BackupPanel onDone={() => setBackupOpen(false)} />
       </Modal>
 
+      {/* Bottom navigation dock */}
+      <DockNav view={view} setView={changeView} />
+
+      {/* Command palette (⌘K) + shortcuts (?) */}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        changeView={changeView}
+        onBackup={() => setBackupOpen(true)}
+        replayIntro={replayIntro}
+      />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
       {/* Real-time Accountability Partner Sync */}
       <AccountabilitySync />
     </div>
+    </CelebrationProvider>
+    </ToastProvider>
     </MotionConfig>
   );
 }
 
 function Header({
-  view,
-  setView,
   onBackup,
+  onCommand,
   replayIntro,
 }: {
-  view: View;
-  setView: (v: View) => void;
   onBackup: () => void;
+  onCommand: () => void;
   replayIntro?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b hairline bg-cream-base/85 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-2 md:gap-4 px-3 sm:px-8 py-3.5">
-        <div className="flex items-baseline gap-1.5 sm:gap-2">
-          <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 bg-olive" aria-hidden />
-          <span className="font-display text-sm sm:text-base font-extrabold tracking-tightest text-espresso">
-            PLANNER
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#050505]/90 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 md:gap-4 px-4 sm:px-8 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>LEARNIST // ACTIVE</span>
+          </div>
+          <span className="font-mono text-xs font-semibold tracking-wider text-slate-200 hidden sm:inline-block">
+            CODEX_ENGINEER
           </span>
         </div>
 
-        <nav className="ml-1 sm:ml-2 flex items-center gap-0.5 sm:gap-1">
-          {NAV.map((n) => {
-            const active = view === n.id;
-            return (
-              <button
-                key={n.id}
-                onClick={() => setView(n.id)}
-                className={`relative px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                  active ? "text-espresso" : "text-coffee hover:text-espresso"
-                }`}
-              >
-                {n.label}
-                {active && (
-                  <motion.span
-                    layoutId="nav-underline"
-                    className="absolute inset-x-1.5 sm:inset-x-2 -bottom-[15px] h-[2px] bg-espresso"
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
-          <Link
-            href="/jobs"
-            className="label text-coffee hover:text-espresso transition-colors text-[10px] sm:text-xs"
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={onCommand}
+            aria-label="Open command palette"
+            className="group flex items-center gap-2 rounded border border-white/15 bg-white/[0.04] px-2.5 py-1 text-slate-300 transition-all hover:border-white/30 hover:bg-white/[0.08]"
           >
-            Outreach<span className="hidden sm:inline"> →</span>
-          </Link>
+            <span className="text-[11px] font-mono text-zinc-400 group-hover:text-slate-200">Search Deck</span>
+            <kbd className="rounded border border-white/20 bg-zinc-900 px-1.5 py-[1px] font-mono text-[10px] text-zinc-300 group-hover:text-white">⌘K</kbd>
+          </button>
           <button
             onClick={onBackup}
-            className="label text-coffee hover:text-espresso transition-colors hidden md:inline-block text-[10px] sm:text-xs"
+            className="font-mono text-[11px] text-zinc-400 hover:text-slate-200 transition-colors hidden md:inline-block px-2 py-1 rounded hover:bg-white/5"
           >
-            Backup
+            [Backup]
           </button>
           {replayIntro && (
             <button
               onClick={replayIntro}
-              className="label text-coffee hover:text-espresso transition-colors hidden md:inline-block text-[10px] sm:text-xs"
+              className="font-mono text-[11px] text-zinc-400 hover:text-slate-200 transition-colors hidden md:inline-block px-2 py-1 rounded hover:bg-white/5"
             >
-              Replay intro
+              [Replay]
             </button>
           )}
           <ThemeToggle />

@@ -442,18 +442,229 @@ export function buildSeed(): PlannerState {
     });
   });
 
+  const notes = [
+    {
+      id: "note-mw-nextjs",
+      title: "Next.js Edge Middleware & JWT Verification",
+      folder: "Middleware",
+      content: `### Next.js Edge Middleware Pattern
+
+Edge middleware runs globally before a request is processed by page routes or API handlers. Use it for auth checks, rate limiting, and Geo-routing.
+
+\`\`\`typescript
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { verifyjwt } from '@/lib/auth';
+
+export async function middleware(request: NextRequest) {
+  const token = request.headers.get('authorization')?.split(' ')[1];
+  const { pathname } = request.nextUrl;
+
+  // 1. Bypass public static routes & auth endpoints
+  if (pathname.startsWith('/_next') || pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  // 2. Validate token on Edge runtime
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized: Missing Token' }, { status: 401 });
+  }
+
+  try {
+    const payload = await verifyjwt(token);
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', payload.sub);
+    requestHeaders.set('x-user-role', payload.role);
+
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+  } catch (err) {
+    return NextResponse.json({ error: 'Invalid or Expired Token' }, { status: 403 });
+  }
+}
+
+export const config = {
+  matcher: ['/api/protected/:path*', '/dashboard/:path*'],
+};
+\`\`\`
+
+**Key Tradeoffs:**
+- Edge Runtime uses V8 Isolates (no Node.js native \`fs\` or heavy libraries).
+- Keep execution latency under **15ms**.`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "note-lab-debounce",
+      title: "Debouncing 3 Ways (Naive → Trailing → Leading & Cancelable)",
+      folder: "Labs",
+      content: `### Debouncing: Naive → Optimized → Advanced
+
+Debouncing ensures a function runs only after a specified delay has elapsed since the last time it was invoked.
+
+#### Level 1: Naive (Basic Trailing)
+\`\`\`javascript
+function naiveDebounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+\`\`\`
+
+#### Level 2: Optimized Trailing with Context & Return Value
+\`\`\`javascript
+function debounce(fn, delay) {
+  let timer = null;
+  return function (...args) {
+    const context = this;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(context, args);
+      timer = null;
+    }, delay);
+  };
+}
+\`\`\`
+
+#### Level 3: Advanced (Leading Edge + Immediate Execution + Cancel Method)
+\`\`\`javascript
+function advancedDebounce(fn, delay, immediate = false) {
+  let timer = null;
+
+  function debounced(...args) {
+    const context = this;
+    const callNow = immediate && !timer;
+
+    if (timer) clearTimeout(timer);
+
+    timer = setTimeout(() => {
+      timer = null;
+      if (!immediate) fn.apply(context, args);
+    }, delay);
+
+    if (callNow) fn.apply(context, args);
+  }
+
+  debounced.cancel = function () {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  return debounced;
+}
+\`\`\`
+
+**Lab Task:** Write a search autocomplete handler that cancels pending requests on rapid keypresses and flushes on Enter.`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "note-mw-express",
+      title: "Express Rate Limiting & Auth Interceptor",
+      folder: "Middleware",
+      content: `### Redis-backed Sliding Window Rate Limiter Middleware
+
+\`\`\`javascript
+const redis = require('./redisClient');
+
+function slidingWindowLimiter(limit = 100, windowSec = 60) {
+  return async (req, res, next) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const key = \`rate_limit:\${ip}\`;
+    const now = Date.now();
+    const windowStart = now - windowSec * 1000;
+
+    const pipeline = redis.pipeline();
+    pipeline.zremrangebyscore(key, 0, windowStart);
+    pipeline.zadd(key, now, now + "-" + Math.random());
+    pipeline.zcard(key);
+    pipeline.expire(key, windowSec);
+
+    const results = await pipeline.exec();
+    const requestCount = results[2][1];
+
+    res.setHeader('X-RateLimit-Limit', limit);
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - requestCount));
+
+    if (requestCount > limit) {
+      return res.status(429).json({ error: 'Too Many Requests' });
+    }
+
+    next();
+  };
+}
+\`\`\`
+`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "note-rag-rerank",
+      title: "RAG Vector Search & Cross-Encoder Reranking",
+      folder: "AI Engineering",
+      content: `### RAG Pipeline: Retrieval → Cross-Encoder Rerank → LLM Context
+
+\`\`\`python
+from sentence_transformers import CrossEncoder
+import qdrant_client
+
+# 1. First Pass: Vector Dense Retrieval (Top 50)
+qdrant = qdrant_client.QdrantClient(host="localhost", port=6333)
+query_vector = embed_model.encode("How does credit card interest compound?")
+
+search_results = qdrant.search(
+    collection_name="finance_docs",
+    query_vector=query_vector,
+    limit=50
+)
+
+# 2. Second Pass: Cross-Encoder Precision Reranking (Top 5)
+reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+pairs = [[query_text, hit.payload['text']] for hit in search_results]
+scores = reranker.predict(pairs)
+
+# Zip and sort by rerank score
+scored_hits = sorted(zip(scores, search_results), key=lambda x: x[0], reverse=True)
+top_5_contexts = [hit.payload['text'] for score, hit in scored_hits[:5]]
+
+# 3. Contextual Generation Prompting
+prompt = f"""Use the following verified context documents to answer the question:
+
+Contexts:
+{chr(10).join(top_5_contexts)}
+
+Question: {query_text}
+Answer:"""
+\`\`\`
+`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+  ];
+
   return {
     version: SCHEMA_VERSION,
     tracks,
     days,
     tasks,
-    sessions: [],
+    sessions: [
+      { id: "ses-1", taskId: "task-1-django-0", date: "2026-07-20", startedAt: "2026-07-20T09:00:00Z", endedAt: "2026-07-20T09:45:00Z", minutes: 45 },
+      { id: "ses-2", taskId: "task-1-dsa-0", date: "2026-07-21", startedAt: "2026-07-21T10:00:00Z", endedAt: "2026-07-21T11:00:00Z", minutes: 60 },
+      { id: "ses-3", taskId: "task-2-sys-0", date: "2026-07-22", startedAt: "2026-07-22T14:00:00Z", endedAt: "2026-07-22T15:30:00Z", minutes: 90 },
+      { id: "ses-4", taskId: "task-3-django-1", date: "2026-07-23", startedAt: "2026-07-23T08:00:00Z", endedAt: "2026-07-23T09:30:00Z", minutes: 90 }
+    ],
     reflections: [],
     focusSettings: { ...DEFAULT_FOCUS_SETTINGS },
     activeTimer: null,
-    notes: [],
+    notes,
+    kv: {},
     activeView: "today",
-    activeNoteId: null,
+    activeNoteId: "note-mw-nextjs",
   };
 }
 

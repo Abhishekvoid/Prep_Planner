@@ -14,11 +14,19 @@ import {
 import { Day, Task, Track } from "@/lib/types";
 import { yesterdayKey } from "@/lib/focus";
 import { StudyLounge } from "./StudyLounge";
+import { RevisionCard } from "./RevisionCard";
 import { TaskItem } from "./TaskItem";
 import { Button, Modal, ProgressBar } from "./primitives";
 import { DayForm, TaskForm } from "./forms";
 import { PressIn } from "@/lib/kineticType";
 import { SectionDivider } from "./SectionDivider";
+import {
+  ActivityHeatmap,
+  CodeLabValidator,
+  SocraticCoachModal,
+  ProofDrawer,
+} from "./system/LearnistDeck";
+import { MustDoContractCard } from "./system/MustDoContractCard";
 
 const delay = (i: number) => ({ animationDelay: `${i * 0.06}s` });
 
@@ -27,13 +35,25 @@ export function TodayView() {
   const days = useMemo(() => orderedDays(state), [state]);
   const tracks = useMemo(() => orderedTracks(state), [state]);
 
-  const [activeId, setActiveId] = useState<string | null>(days[0]?.id ?? null);
+  // Open on the first day that still has work left — landing on a finished day
+  // is dead weight. Scanning in order means a partly-done later day never jumps
+  // the queue ahead of an earlier unfinished one. A day with no tasks yet (just
+  // added) counts as unfinished; if every day is done, fall back to the last.
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    const next = days.find((d) => {
+      const p = dayProgress(state, d.id);
+      return p.total === 0 || p.done < p.total;
+    });
+    return (next ?? days[days.length - 1])?.id ?? null;
+  });
   const day = days.find((d) => d.id === activeId) ?? days[0] ?? null;
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task }>({ open: false });
   const [dayModal, setDayModal] = useState(false);
   const [queryModal, setQueryModal] = useState(false);
   const [simQuery, setSimQuery] = useState("n1");
+  const [coachModal, setCoachModal] = useState<{ open: boolean; title: string }>({ open: false, title: "" });
+  const [proofModal, setProofModal] = useState<{ open: boolean; task?: Task }>({ open: false });
 
   if (!day) {
     return (
@@ -78,46 +98,34 @@ export function TodayView() {
     return lines;
   }, [day.must]);
 
-  const [checkedMusts, setCheckedMusts] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    const saved = localStorage.getItem(`must-checked-${day.id}`);
-    if (saved) {
-      try {
-        setCheckedMusts(JSON.parse(saved));
-      } catch {
-        setCheckedMusts({});
-      }
-    } else {
-      setCheckedMusts({});
+  // Per-day checklist state now lives in the synced kv bag (Neon), not raw
+  // localStorage, so it round-trips across devices.
+  const mustKey = `must-checked-${day.id}`;
+  const checkedMusts = useMemo<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(state.kv?.[mustKey] ?? "{}");
+    } catch {
+      return {};
     }
-  }, [day.id]);
+  }, [state.kv, mustKey]);
 
   const toggleMust = (idx: number) => {
     const next = { ...checkedMusts, [idx]: !checkedMusts[idx] };
-    setCheckedMusts(next);
-    localStorage.setItem(`must-checked-${day.id}`, JSON.stringify(next));
+    state.setKv(mustKey, JSON.stringify(next));
   };
 
-  const [pitchChecked, setPitchChecked] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    const saved = localStorage.getItem(`pitch-checked-${day.id}`);
-    if (saved) {
-      try {
-        setPitchChecked(JSON.parse(saved));
-      } catch {
-        setPitchChecked({});
-      }
-    } else {
-      setPitchChecked({});
+  const pitchKey = `pitch-checked-${day.id}`;
+  const pitchChecked = useMemo<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(state.kv?.[pitchKey] ?? "{}");
+    } catch {
+      return {};
     }
-  }, [day.id]);
+  }, [state.kv, pitchKey]);
 
   const togglePitch = (key: string) => {
     const next = { ...pitchChecked, [key]: !pitchChecked[key] };
-    setPitchChecked(next);
-    localStorage.setItem(`pitch-checked-${day.id}`, JSON.stringify(next));
+    state.setKv(pitchKey, JSON.stringify(next));
   };
 
   const isTimerRunning = useMemo(() => {
@@ -178,18 +186,14 @@ export function TodayView() {
   };
 
   const [showGlitch, setShowGlitch] = useState(false);
-  const [pausesCount, setPausesCount] = useState(0);
-  const [penalty, setPenalty] = useState(0);
-  const [rivalBonus, setRivalBonus] = useState(0);
 
-  useEffect(() => {
-    const pCount = Number(localStorage.getItem(`focus-pauses-${day.id}`) ?? 0);
-    setPausesCount(pCount);
-    const pAmt = Number(localStorage.getItem(`focus-distraction-penalty-${day.id}`) ?? 0);
-    setPenalty(pAmt);
-    const rBonus = Number(localStorage.getItem(`rival-bonus-${day.id}`) ?? 0);
-    setRivalBonus(rBonus);
-  }, [day.id]);
+  // Gamification counters, derived from the synced kv bag (Neon-backed).
+  const pausesKey = `focus-pauses-${day.id}`;
+  const penaltyKey = `focus-distraction-penalty-${day.id}`;
+  const rivalKey = `rival-bonus-${day.id}`;
+  const pausesCount = Number(state.kv?.[pausesKey] ?? 0);
+  const penalty = Number(state.kv?.[penaltyKey] ?? 0);
+  const rivalBonus = Number(state.kv?.[rivalKey] ?? 0);
 
   const [mockCapital, setMockCapital] = useState(0);
 
@@ -210,17 +214,11 @@ export function TodayView() {
     setShowGlitch(true);
     setTimeout(() => setShowGlitch(false), 1200);
 
-    const nextPauses = Number(localStorage.getItem(`focus-pauses-${day.id}`) ?? 0) + 1;
-    setPausesCount(nextPauses);
-    localStorage.setItem(`focus-pauses-${day.id}`, String(nextPauses));
-
-    const nextPenalty = Number(localStorage.getItem(`focus-distraction-penalty-${day.id}`) ?? 0) + 100;
-    setPenalty(nextPenalty);
-    localStorage.setItem(`focus-distraction-penalty-${day.id}`, String(nextPenalty));
-
-    const nextRivalBonus = Number(localStorage.getItem(`rival-bonus-${day.id}`) ?? 0) + 3;
-    setRivalBonus(nextRivalBonus);
-    localStorage.setItem(`rival-bonus-${day.id}`, String(nextRivalBonus));
+    // Read the latest counters from the store so rapid pauses don't clobber.
+    const cur = usePlanner.getState().kv ?? {};
+    state.setKv(pausesKey, String(Number(cur[pausesKey] ?? 0) + 1));
+    state.setKv(penaltyKey, String(Number(cur[penaltyKey] ?? 0) + 100));
+    state.setKv(rivalKey, String(Number(cur[rivalKey] ?? 0) + 3));
 
     // Web Audio Low Buzz
     try {
@@ -690,6 +688,17 @@ export function TodayView() {
         </div>
       </header>
 
+      {/* Must-Do Execution Contract: DAY DOESN'T END UNTIL YOU DO THIS */}
+      <div className="mt-6">
+        <MustDoContractCard dayId={day.id} />
+      </div>
+
+      {/* Learnist Pillars 1, 3 & 4: Activity Heatmap & Code Lab Validator */}
+      <div className="mt-6 space-y-4">
+        <ActivityHeatmap sessions={state.sessions} tasks={state.tasks} />
+        <CodeLabValidator />
+      </div>
+
       {/* Goal / Must / Focus stats */}
       <div className="mt-6 grid grid-cols-12 gap-3 items-stretch">
         {/* Main Goal Card */}
@@ -1071,6 +1080,13 @@ export function TodayView() {
 
       <SectionDivider className="mt-6" />
 
+      {/* Revision & Summary — distilled, review-later notes for the day */}
+      <div className="reveal mt-6" style={delay(3.9)}>
+        <RevisionCard day={day} />
+      </div>
+
+      <SectionDivider className="mt-6" />
+
       {/* Result */}
       <div
         className="reveal mt-6 bg-espresso text-cream-raised p-6"
@@ -1112,6 +1128,28 @@ export function TodayView() {
       <Modal open={dayModal} onClose={() => setDayModal(false)} title="Edit day">
         <DayForm day={day} onDone={() => setDayModal(false)} />
       </Modal>
+
+      <SocraticCoachModal
+        open={coachModal.open}
+        onClose={() => setCoachModal({ open: false, title: "" })}
+        topicTitle={coachModal.title}
+      />
+
+      <ProofDrawer
+        open={proofModal.open}
+        onClose={() => setProofModal({ open: false })}
+        taskTitle={proofModal.task?.text ?? "Task Node"}
+        onSubmitProof={(proofUrl, proofType) => {
+          if (proofModal.task) {
+            state.updateTask(proofModal.task.id, {
+              done: true,
+              proven: true,
+              proofUrl,
+              proofType,
+            });
+          }
+        }}
+      />
 
       <Modal open={queryModal} onClose={() => setQueryModal(false)} title="Postgres Profiling &amp; Django Query Simulator">
         <div className="space-y-4 text-espresso max-w-xl">

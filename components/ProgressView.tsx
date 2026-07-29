@@ -193,6 +193,8 @@ export function ProgressView() {
 
       <STARWorkbookCard />
 
+      <RevisionGrillingDeck />
+
       <LeetcodeQuizCard />
 
       <SectionDivider className="mt-8" />
@@ -372,10 +374,8 @@ function CalendarNotificationCard() {
   const [notifState, setNotifState] = useState<NotificationPermission | "unsupported">("default");
 
   const [startDate, setStartDate] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("ical-cycle-start");
-      if (saved) return saved;
-    }
+    const saved = state.kv?.["ical-cycle-start"];
+    if (saved) return saved;
     const d = new Date();
     return d.toISOString().split("T")[0];
   });
@@ -392,7 +392,7 @@ function CalendarNotificationCard() {
 
   const handleDateChange = (val: string) => {
     setStartDate(val);
-    localStorage.setItem("ical-cycle-start", val);
+    state.setKv("ical-cycle-start", val);
   };
 
   const enableNotifications = async () => {
@@ -599,21 +599,25 @@ function StartupPredictorCard() {
 }
 
 function STARWorkbookCard() {
+  const setKv = usePlanner((st) => st.setKv);
   const [storyId, setStoryId] = useState("nexus_latency");
   const [s, setS] = useState("");
   const [t, setT] = useState("");
   const [a, setA] = useState("");
   const [r, setR] = useState("");
 
+  // STAR story prose now lives in the synced kv bag (Neon-backed). Load the
+  // active story's answers when the selection changes.
   useEffect(() => {
-    setS(localStorage.getItem(`star-${storyId}-s`) ?? "");
-    setT(localStorage.getItem(`star-${storyId}-t`) ?? "");
-    setA(localStorage.getItem(`star-${storyId}-a`) ?? "");
-    setR(localStorage.getItem(`star-${storyId}-r`) ?? "");
+    const kv = usePlanner.getState().kv ?? {};
+    setS(kv[`star-${storyId}-s`] ?? "");
+    setT(kv[`star-${storyId}-t`] ?? "");
+    setA(kv[`star-${storyId}-a`] ?? "");
+    setR(kv[`star-${storyId}-r`] ?? "");
   }, [storyId]);
 
   const save = (key: "s" | "t" | "a" | "r", val: string) => {
-    localStorage.setItem(`star-${storyId}-${key}`, val);
+    setKv(`star-${storyId}-${key}`, val);
   };
 
   const score = useMemo(() => {
@@ -740,15 +744,11 @@ function STARWorkbookCard() {
 }
 
 function LeetcodeQuizCard() {
+  const setKv = usePlanner((st) => st.setKv);
   const [activeQ, setActiveQ] = useState(0);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
-  const [score, setScore] = useState(() => {
-    if (typeof window !== "undefined") {
-      return Number(localStorage.getItem("leetcode-quiz-score") ?? 0);
-    }
-    return 0;
-  });
+  const [score, setScore] = useState(() => Number(usePlanner.getState().kv?.["leetcode-quiz-score"] ?? 0));
 
   const questions = [
     {
@@ -792,7 +792,7 @@ function LeetcodeQuizCard() {
     if (idx === current.correct) {
       const nextScore = score + 50;
       setScore(nextScore);
-      localStorage.setItem("leetcode-quiz-score", String(nextScore));
+      setKv("leetcode-quiz-score", String(nextScore));
     }
   };
 
@@ -857,6 +857,124 @@ function LeetcodeQuizCard() {
               <Button variant="solid" onClick={handleNext}>
                 {activeQ === questions.length - 1 ? "Start Over ↺" : "Next Question →"}
               </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevisionGrillingDeck() {
+  const state = usePlanner();
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [revisesLogged, setRevisesLogged] = useState(14);
+
+  // Completed tasks & notes form the active recall pool
+  const drillPool = useMemo(() => {
+    const list = [
+      {
+        topic: "Django ORM Optimization",
+        prompt: "Explain out loud: When should you use select_related vs prefetch_related in Django?",
+        answer: "Use `select_related` for Single-value relationships (ForeignKey / OneToOne) — performs an SQL JOIN in 1 query. Use `prefetch_related` for Multi-value relationships (ManyToMany / reverse FK) — executes separate queries and joins in Python memory."
+      },
+      {
+        topic: "PostgreSQL EXPLAIN ANALYZE",
+        prompt: "What is the difference between Seq Scan and Index Scan in PostgreSQL execution plans?",
+        answer: "Seq Scan reads every page on disk sequentially (slow for large tables). Index Scan traverses a B-Tree index structure to fetch matching tuple pointers directly."
+      },
+      {
+        topic: "Redis Rate Limiting",
+        prompt: "How do you implement a sliding window rate limiter in Redis?",
+        answer: "Store timestamps in a Sorted Set (ZADD key timestamp unique_id). Remove expired elements with ZREMRANGEBYSCORE key 0 (now - window). Count remaining with ZCARD."
+      },
+      {
+        topic: "Celery ACKS_LATE",
+        prompt: "What happens if a Celery worker dies mid-task when CELERY_TASK_ACKS_LATE is enabled?",
+        answer: "Because the task is only acknowledged after successful execution, the broker detects the worker disconnection and re-queues the message to another worker."
+      }
+    ];
+    return list;
+  }, []);
+
+  const current = drillPool[index % drillPool.length];
+
+  const handleRate = (result: "locked" | "fuzzy" | "forgot") => {
+    setRevisesLogged((prev) => prev + 1);
+    setRevealed(false);
+    setIndex((prev) => (prev + 1) % drillPool.length);
+  };
+
+  return (
+    <div className="reveal mt-6 border border-white/10 bg-[#0E0E12] p-5 rounded-lg text-slate-200">
+      <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-amber-400 uppercase tracking-widest">
+              [Pillar 2]
+            </span>
+            <h3 className="font-mono text-sm font-semibold text-slate-200">
+              Active Recall & Grilling Deck
+            </h3>
+          </div>
+          <p className="font-mono text-[11px] text-zinc-400 mt-0.5">
+            Locks in finished lessons so skills stick instead of leaking
+          </p>
+        </div>
+        <span className="font-mono text-[10px] uppercase text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
+          {revisesLogged} Revises Logged
+        </span>
+      </div>
+
+      <div className="bg-[#050505] border border-white/10 rounded p-4 space-y-3 font-mono text-xs">
+        <div className="flex justify-between items-center text-zinc-400 text-[10px] uppercase">
+          <span>Topic: {current.topic}</span>
+          <span>Card {index + 1} of {drillPool.length}</span>
+        </div>
+
+        <p className="text-slate-200 text-sm font-medium leading-relaxed">
+          {current.prompt}
+        </p>
+
+        {revealed ? (
+          <div className="mt-3 pt-3 border-t border-white/10 text-emerald-300 bg-emerald-950/20 p-3 rounded leading-relaxed animate-fadeIn">
+            <span className="text-[9px] uppercase font-bold text-emerald-400 block mb-1">
+              Verified Concept Answer:
+            </span>
+            {current.answer}
+          </div>
+        ) : (
+          <button
+            onClick={() => setRevealed(true)}
+            className="w-full py-2 rounded border border-white/15 bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold transition-all"
+          >
+            [Reveal Verified Answer]
+          </button>
+        )}
+
+        {revealed && (
+          <div className="pt-3 flex items-center justify-between gap-2 border-t border-white/10">
+            <span className="text-[10px] text-zinc-400">Rate your recall accuracy:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRate("forgot")}
+                className="px-2.5 py-1 rounded border border-rose-500/30 bg-rose-950/40 text-rose-300 text-[10px] hover:bg-rose-900/60"
+              >
+                ⚠️ Memory Leaked
+              </button>
+              <button
+                onClick={() => handleRate("fuzzy")}
+                className="px-2.5 py-1 rounded border border-amber-500/30 bg-amber-950/40 text-amber-300 text-[10px] hover:bg-amber-900/60"
+              >
+                ⚡ Needs Practice
+              </button>
+              <button
+                onClick={() => handleRate("locked")}
+                className="px-3 py-1 rounded border border-emerald-500/40 bg-emerald-950 text-emerald-300 text-[10px] font-bold hover:bg-emerald-900/80 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+              >
+                🔥 Locked In
+              </button>
             </div>
           </div>
         )}

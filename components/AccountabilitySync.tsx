@@ -58,7 +58,7 @@ export function AccountabilitySync() {
 
   // Broadcast state to partner
   const broadcastState = async () => {
-    if (!isConnected || !roomCode || !yourName) return;
+    if (!roomCode || !yourName) return;
 
     const currentTimer = usePlanner.getState().activeTimer;
     const now = Date.now();
@@ -108,6 +108,8 @@ export function AccountabilitySync() {
         : undefined,
     };
 
+    console.log("Abhishek broadcasting payload:", payload);
+
     try {
       await fetch("/api/accountability/publish", {
         method: "POST",
@@ -121,7 +123,7 @@ export function AccountabilitySync() {
 
   // 1. Pusher subscription and connection
   useEffect(() => {
-    if (!isConnected || !roomCode) return;
+    if (!roomCode) return;
 
     // Use custom credentials or fallback to process.env config
     const key = customPusherKey || process.env.NEXT_PUBLIC_PUSHER_KEY || "";
@@ -144,6 +146,7 @@ export function AccountabilitySync() {
 
     // Listen for partner state changes
     channel.bind("partner-status", (payload: any) => {
+      console.log("Abhishek received partner-status:", payload);
       if (payload.sender !== yourName) {
         useAccountability.getState().updatePartnerState(payload.data);
       }
@@ -152,14 +155,14 @@ export function AccountabilitySync() {
     // Listen for nudges
     channel.bind("nudge", (payload: any) => {
       if (payload.sender !== yourName) {
-        useAccountability.getState().addAlert("nudge", payload.sender);
+        useAccountability.getState().addAlert("nudge", payload.sender, payload.data?.message);
       }
     });
 
     // Listen for applause
     channel.bind("applaud", (payload: any) => {
       if (payload.sender !== yourName) {
-        useAccountability.getState().addAlert("applaud", payload.sender);
+        useAccountability.getState().addAlert("applaud", payload.sender, payload.data?.message);
       }
     });
 
@@ -170,35 +173,45 @@ export function AccountabilitySync() {
       channel.unbind_all();
       client.unsubscribe(channelName);
       client.disconnect();
-      useAccountability.getState().clearPartnerState();
     };
-  }, [isConnected, roomCode, yourName, customPusherKey, customPusherCluster]);
+  }, [roomCode, yourName, customPusherKey, customPusherCluster]);
 
-  // 2. Broadcast on local timer / checklist updates
+  // Clear partner state when roomCode changes (prevents showing previous partner data when switching rooms)
   useEffect(() => {
-    if (!isConnected || !roomCode) return;
+    useAccountability.getState().clearPartnerState();
+  }, [roomCode]);
+
+  // 2a. Broadcast immediately on local activeTimer updates (starts, pauses, resumes)
+  useEffect(() => {
+    if (!roomCode) return;
+    void broadcastState();
+  }, [activeTimer, roomCode]);
+
+  // 2b. Broadcast debounced updates on local checklist / stats updates (completed tasks, focus minutes)
+  useEffect(() => {
+    if (!roomCode) return;
 
     const timer = setTimeout(() => {
       void broadcastState();
-    }, 1500); // Debounce updates
+    }, 1500); // Debounce checklist/stats updates
 
     return () => clearTimeout(timer);
-  }, [activeTimer, localStats, isConnected, roomCode]);
+  }, [localStats, roomCode]);
 
   // 3. Heartbeat loop (every 10s)
   useEffect(() => {
-    if (!isConnected || !roomCode) return;
+    if (!roomCode) return;
 
     const interval = setInterval(() => {
       void broadcastState();
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [isConnected, roomCode, yourName]);
+  }, [roomCode, yourName]);
 
   // 4. Partner Offline watchdog (every 5s)
   useEffect(() => {
-    if (!isConnected || !roomCode) return;
+    if (!roomCode) return;
 
     const watchdog = setInterval(() => {
       const state = useAccountability.getState().partnerState;
@@ -211,7 +224,7 @@ export function AccountabilitySync() {
     }, 5000);
 
     return () => clearInterval(watchdog);
-  }, [isConnected, roomCode]);
+  }, [roomCode]);
 
   return null;
 }

@@ -52,16 +52,35 @@ export function GoalsView() {
 
   return (
     <div>
-      <div className="flex items-end justify-between pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
         <div>
           <div className="label text-coffee mb-1">Tracks</div>
           <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tightest text-espresso">
             Your goals
           </h1>
         </div>
-        <Button variant="solid" onClick={() => setTrackModal({ open: true })}>
-          + New track
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const openTrack = tracks.find((t) => t.id === openId) || tracks[0];
+              window.dispatchEvent(
+                new CustomEvent("open-ai-mentor", {
+                  detail: {
+                    topicId: openTrack?.id || "general-backend",
+                    title: openTrack?.name || "Backend Engineering Goals",
+                    day: 1,
+                  },
+                })
+              );
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-500 hover:bg-amber-500/20 transition-all shadow-sm"
+          >
+            🔥 Grill Me with AI Mentor
+          </button>
+          <Button variant="solid" onClick={() => setTrackModal({ open: true })}>
+            + New track
+          </Button>
+        </div>
       </div>
 
       <SectionDivider />
@@ -318,6 +337,11 @@ function TrackForm({ track, onDone }: { track?: Track; onDone: () => void }) {
 function RPGSkillTree() {
   const state = usePlanner();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [fixModal, setFixModal] = useState<{ open: boolean; title: string; prompt: string }>({
+    open: false,
+    title: "",
+    prompt: "",
+  });
 
   const completions = useMemo(() => {
     const dsa = state.tasks.filter((t) => t.trackId === "track-dsa" && t.done).length;
@@ -329,105 +353,187 @@ function RPGSkillTree() {
 
   const nodes = [
     {
-      id: "dsa",
-      name: "Leetcode Arrays & Searches",
-      desc: "Optimal two-pointer sweeps, sliding windows, and division searches.",
-      unlocked: completions.dsa >= 1,
-      tip: "💡 INTERVIEW TIP: When searching sorted arrays, use binary search O(log N). For subarray sum problems of size K, use sliding window.",
-      color: "var(--olive)"
+      id: "llm",
+      name: "LLM Architectures & Transformers",
+      desc: "Self-attention mechanisms, KV Caching, and FlashAttention 2.",
+      status: completions.dsa >= 1 ? "PROVEN" : "BUILDING",
+      tip: "💡 AI ENGINEER LESSON: KV Caching avoids recalculating Key and Value tensors for previously generated tokens, reducing decoding time complexity per token from O(N²) to O(N).",
+      color: "var(--olive)",
+      prompt: "Implement KV-cache tensor slicing in PyTorch."
     },
     {
-      id: "backend",
-      name: "Django & Database Tuning",
-      desc: "Postgres index query planning, N+1 query loop prevention.",
-      unlocked: completions.backend >= 1,
-      tip: "💡 INTERVIEW TIP: Django `select_related` generates an INNER JOIN (use for ForeignKey). `prefetch_related` generates a separate IN query (use for ManyToMany).",
-      color: "var(--clay)"
+      id: "rag",
+      name: "RAG & Hybrid Vector Search",
+      desc: "Dense vector retrieval + Cross-Encoder precision reranking.",
+      status: completions.backend >= 1 ? "PROVEN" : "BUILDING",
+      tip: "💡 AI ENGINEER LESSON: Bi-encoders are fast for first-stage retrieval (Top 100), but Cross-encoders process Query + Document jointly, providing far higher accuracy for final re-ranking (Top 5).",
+      color: "var(--clay)",
+      prompt: "Build Cross-Encoder re-ranker pipeline with Qdrant."
     },
     {
-      id: "sys",
-      name: "Distributed Scalability",
-      desc: "Consistent hashing, token bucket rate limiting, and cache policies.",
-      unlocked: completions.sys >= 1,
-      tip: "💡 INTERVIEW TIP: Hashing standard keys causes unbalanced clusters when nodes change. Use Consistent Hashing (virtual nodes) to minimize cache churn to 1/N key remappings.",
-      color: "var(--slate)"
+      id: "agents",
+      name: "Autonomous AI Agents & Tooling",
+      desc: "ReAct loop, function calling, stateful memory & subagents.",
+      status: completions.sys >= 1 ? "BUILDING" : "LOCKED",
+      tip: "💡 AI ENGINEER LESSON: Prevent infinite agent execution loops by enforcing explicit max_iterations, structured JSON outputs, and fallback error handlers.",
+      color: "var(--slate)",
+      prompt: "Create ReAct loop with max iteration backoff."
     },
     {
-      id: "star",
-      name: "STAR Behavioral Pitching",
-      desc: "Presenting real-time latency and engineering metrics concisely.",
-      unlocked: completions.star >= 1,
-      tip: "💡 INTERVIEW TIP: Structure behavioral stories as Situation (10%), Task (10%), Action (60% - focus on your coding choices), and Result (20% - quantitative numbers: e.g. 500ms to 150ms latency decrease!).",
-      color: "var(--espresso)"
+      id: "cuda",
+      name: "CUDA Kernels & Hardware Optimization",
+      desc: "Smem tiling, coalesced memory access, and PyTorch C++ extensions.",
+      status: completions.star >= 1 ? "BUILDING" : "LOCKED",
+      tip: "💡 AI ENGINEER LESSON: Memory bandwidth is usually the bottleneck for LLM inference (memory-bound), while matrix multiplication pre-fill is compute-bound.",
+      color: "var(--espresso)",
+      prompt: "Optimize matrix multiplication CUDA kernel tile size."
     }
   ];
 
   return (
-    <div className="reveal mt-6 border border-coffee/30 bg-cream-raised p-5 rounded-sm shadow-sm" style={{ animationDelay: '0.15s' }}>
-      <div className="flex items-center justify-between border-b border-coffee/15 pb-2.5 mb-4">
+    <div className="reveal mt-6 border border-white/10 bg-[#0E0E12] p-5 rounded-lg text-slate-200">
+      <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
         <div>
-          <h3 className="font-display text-sm font-bold text-espresso uppercase tracking-wide">🌳 Developer Prep Skill Tree</h3>
-          <p className="text-[10px] text-coffee mt-0.5">Unlocks automatically as you complete study tasks in each track</p>
+          <h3 className="font-mono text-xs uppercase tracking-widest text-emerald-400 font-bold">
+            ⚡ AI ENGINEER PATHWAY MAP
+          </h3>
+          <p className="font-mono text-[11px] text-zinc-400 mt-0.5">
+            Path node state: LOCKED → BUILDING → PROVEN
+          </p>
         </div>
-        <span className="text-[9px] font-mono font-bold text-coffee bg-cream-deep/40 px-2 py-0.5 rounded-sm">
-          Unlocks: {nodes.filter(n => n.unlocked).length} / {nodes.length}
+        <span className="text-[10px] font-mono font-bold text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+          Proven Nodes: {nodes.filter(n => n.status === "PROVEN").length} / {nodes.length}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start pt-1">
         {nodes.map((node, idx) => (
           <div 
             key={node.id} 
-            onClick={() => node.unlocked && setSelectedNode(selectedNode === node.id ? null : node.id)}
-            className={`border rounded-sm p-3.5 transition-all relative overflow-hidden flex flex-col justify-between min-h-[110px] ${
-              node.unlocked 
-                ? "cursor-pointer border-coffee/30 bg-cream-base/50 hover:-translate-y-0.5 hover:shadow-sm" 
-                : "border-coffee/10 bg-cream-deep/20 opacity-55"
+            onClick={() => setSelectedNode(selectedNode === node.id ? null : node.id)}
+            className={`border rounded p-3.5 transition-all relative overflow-hidden flex flex-col justify-between min-h-[120px] ${
+              node.status === "PROVEN"
+                ? "border-emerald-500/40 bg-emerald-950/20 hover:border-emerald-400 cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.15)]" 
+                : node.status === "BUILDING"
+                ? "border-white/20 bg-white/[0.04] hover:border-white/40 cursor-pointer"
+                : "border-white/5 bg-zinc-950/40 opacity-40"
             }`}
           >
             {idx < nodes.length - 1 && (
-              <div className="hidden sm:block absolute right-[-8px] top-1/2 -translate-y-1/2 text-coffee/30 text-sm font-bold z-10">
+              <div className="hidden sm:block absolute right-[-8px] top-1/2 -translate-y-1/2 text-zinc-600 font-mono text-xs font-bold z-10">
                 →
               </div>
             )}
             
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: node.unlocked ? node.color : "var(--coffee-soft)" }} />
-                <span className="font-display text-xs font-bold text-espresso truncate">{node.name.split(" ")[0]}</span>
+                <span className={`h-2 w-2 rounded-full shrink-0 ${node.status === "PROVEN" ? "bg-emerald-400 animate-pulse" : node.status === "BUILDING" ? "bg-amber-400" : "bg-zinc-600"}`} />
+                <span className="font-mono text-xs font-bold text-slate-200 truncate">{node.name.split(" ")[0]}</span>
               </div>
-              <p className="text-[10px] leading-snug text-coffee-soft line-clamp-2">{node.desc}</p>
+              <p className="font-mono text-[10px] leading-snug text-zinc-400 line-clamp-2">{node.desc}</p>
             </div>
 
-            <div className="mt-2.5 flex items-center justify-between">
-              <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-sm ${
-                node.unlocked ? "text-olive-deep bg-olive/10" : "text-coffee bg-coffee/10"
+            <div className="mt-3 flex items-center justify-between pt-2 border-t border-white/10">
+              <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                node.status === "PROVEN" 
+                  ? "text-emerald-300 bg-emerald-950 border border-emerald-500/30" 
+                  : node.status === "BUILDING"
+                  ? "text-amber-300 bg-amber-950/40 border border-amber-500/30"
+                  : "text-zinc-400 bg-zinc-900 border border-white/10"
               }`}>
-                {node.unlocked ? "★ Unlocked" : "🔒 Locked"}
+                {node.status === "PROVEN" ? "✓ PROVEN" : node.status === "BUILDING" ? "⚙ BUILDING" : "🔒 LOCKED"}
               </span>
-              {node.unlocked && (
-                <span className="text-[8px] text-coffee-soft font-bold uppercase underline">
-                  {selectedNode === node.id ? "Hide Tip" : "View Tip"}
-                </span>
-              )}
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const topicIdMap: Record<string, string> = {
+                      llm: "day-1-django-orm",
+                      rag: "day-6-rag-architecture",
+                      agents: "day-4-celery-async-reliability",
+                      cuda: "day-2-postgres-indexing",
+                    };
+                    window.dispatchEvent(
+                      new CustomEvent("open-fde-topic", {
+                        detail: topicIdMap[node.id] ?? "day-1-django-orm",
+                      })
+                    );
+                  }}
+                  className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300 font-bold underline"
+                >
+                  [0-1 Notes]
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFixModal({ open: true, title: node.name, prompt: node.prompt });
+                  }}
+                  className="text-[9px] font-mono text-zinc-400 hover:text-slate-200 underline"
+                >
+                  [Fix-Lesson]
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {selectedNode && (
-        <div className="mt-4 p-3.5 bg-espresso text-cream-raised border border-coffee/30 rounded-sm font-mono text-[11px] leading-relaxed relative animate-fadeIn">
-          <div className="flex justify-between items-center border-b border-cream-raised/15 pb-1.5 mb-2">
-            <span className="text-[9px] uppercase font-bold text-clay tracking-wide">
-              {nodes.find(n => n.id === selectedNode)?.name} — Study Guide Node
+        <div className="mt-4 p-3.5 bg-[#050505] text-slate-200 border border-white/15 rounded font-mono text-[11px] leading-relaxed relative animate-fadeIn">
+          <div className="flex justify-between items-center border-b border-white/10 pb-1.5 mb-2">
+            <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wide">
+              {nodes.find(n => n.id === selectedNode)?.name} — AI Engineer Node
             </span>
-            <button onClick={() => setSelectedNode(null)} className="text-cream-raised/60 hover:text-cream-raised font-bold text-xs select-none">
+            <button onClick={() => setSelectedNode(null)} className="text-zinc-400 hover:text-slate-200 font-bold text-xs select-none">
               × Close
             </button>
           </div>
           <p>{nodes.find(n => n.id === selectedNode)?.tip}</p>
         </div>
       )}
+
+      {/* Fix-Lesson Repair Drawer Modal */}
+      <Modal
+        open={fixModal.open}
+        onClose={() => setFixModal({ open: false, title: "", prompt: "" })}
+        title={`Fix & Repair Lesson // ${fixModal.title}`}
+      >
+        <div className="space-y-4 font-mono text-xs text-slate-200 pt-2">
+          <p className="text-zinc-400 text-[11px] leading-relaxed">
+            <span className="text-amber-400 font-bold">Pillar 5:</span> Repair lesson parameters when a concept feels misaligned or needs customized challenge sizing.
+          </p>
+
+          <div>
+            <label className="block text-[10px] uppercase tracking-wider text-zinc-400 mb-1">
+              Lesson Target Prompt & Challenge
+            </label>
+            <textarea
+              value={fixModal.prompt}
+              onChange={(e) => setFixModal({ ...fixModal, prompt: e.target.value })}
+              rows={3}
+              className="w-full bg-[#050505] border border-white/15 rounded p-2.5 outline-none focus:border-white/40 text-slate-200"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+            <button
+              onClick={() => setFixModal({ open: false, title: "", prompt: "" })}
+              className="px-3 py-1.5 rounded border border-white/15 text-zinc-400 hover:text-slate-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setFixModal({ open: false, title: "", prompt: "" });
+              }}
+              className="px-4 py-1.5 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-bold"
+            >
+              [Save Repair]
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

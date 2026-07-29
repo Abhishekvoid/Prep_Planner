@@ -1,3 +1,5 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -18,36 +20,36 @@
 */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* Surfaces — elevation reads via lightness (raised lighter, deep recessed) */
-  --cream-base-rgb: 239 231 214; /* #EFE7D6 page */
-  --cream-raised-rgb: 246 240 226; /* #F6F0E2 raised */
-  --cream-deep-rgb: 230 220 198; /* #E6DCC6 recessed */
+  --font-display: 'Satoshi', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Text */
-  --espresso-rgb: 42 33 27; /* #2A211B primary */
-  --coffee-rgb: 90 69 52; /* #5A4534 secondary (darkened to pass WCAG AA against cream deep) */
-  --coffee-soft-rgb: 118 94 73; /* #765E49 muted (darkened to pass WCAG AA against cream base) */
+  /* Surfaces — Vantablack & Dark Charcoal Hardware Palette */
+  --cream-base-rgb: 5 5 5; /* #050505 Vantablack page background */
+  --cream-raised-rgb: 14 14 18; /* #0E0E12 Raised card surface */
+  --cream-deep-rgb: 9 9 11; /* #09090B Recessed inner core surface */
 
-  /* Accents — olive (calm/positive), clay (warm/urgent) */
-  --olive-rgb: 110 112 72; /* #6E7048 */
-  --olive-deep-rgb: 83 85 47; /* #53552F emphasis */
-  --olive-soft-rgb: 135 138 90; /* #878A5A */
-  --clay-rgb: 176 115 74; /* #B0734A */
-  --clay-deep-rgb: 138 87 51; /* #8A5733 */
-  --slate-rgb: 65 95 110; /* #415F6E */
+  /* Typography — Pure Silver & High-Contrast Monochrome */
+  --espresso-rgb: 226 232 240; /* #E2E8F0 High-contrast silver primary text */
+  --coffee-rgb: 161 161 170; /* #A1A1AA Zinc secondary text */
+  --coffee-soft-rgb: 113 113 122; /* #71717A Muted code text */
 
-  /* Hairline rule + modal scrim (scrim stays dark in both themes) */
-  --hair: rgba(111, 88, 68, 0.22);
-  --scrim-rgb: 42 33 27;
-  --grain-opacity: 0.035;
+  /* Accents — Crisp Silver Highlight, Emerald Status, Slate Blue */
+  --olive-rgb: 226 232 240; /* Silver primary status */
+  --olive-deep-rgb: 255 255 255; /* Pure white active emphasis */
+  --olive-soft-rgb: 161 161 170; /* Metallic silver */
+  --clay-rgb: 244 63 94; /* High alert rose red */
+  --clay-deep-rgb: 225 29 72; /* Deep warning */
+  --slate-rgb: 148 163 184; /* Steel slate */
 
-  /* Embedded light for the Almanac frame — a warm olive that pools on the
-     hairline. Light theme: olive-soft warmth on cream. */
-  --frame-glow: rgb(var(--olive-soft-rgb));
+  /* Hairline rule + modal scrim */
+  --hair: rgba(255, 255, 255, 0.12);
+  --scrim-rgb: 3 3 4;
+  --grain-opacity: 0.04;
 
-  /* Derived full-color vars for inline styles */
+  --frame-glow: rgba(255, 255, 255, 0.15);
+
+  /* Derived full-color vars */
   --cream-base: rgb(var(--cream-base-rgb));
   --cream-raised: rgb(var(--cream-raised-rgb));
   --cream-deep: rgb(var(--cream-deep-rgb));
@@ -60,53 +62,48 @@
   --clay: rgb(var(--clay-rgb));
   --clay-deep: rgb(var(--clay-deep-rgb));
   --slate: rgb(var(--slate-rgb));
-  --flow-rgb: 89 82 164; /* #5952A4 — deep indigo/violet for Flow mode */
+  --flow-rgb: 148 163 184;
   --flow: rgb(var(--flow-rgb));
 }
 
 .dark {
   color-scheme: dark;
 
-  /* Surfaces — warm near-black; raised is lighter (elevation), deep darker */
-  --cream-base-rgb: 26 22 18; /* #1A1612 page */
-  --cream-raised-rgb: 36 30 25; /* #241E19 raised */
-  --cream-deep-rgb: 19 16 13; /* #13100D recessed */
+  --cream-base-rgb: 5 5 5;
+  --cream-raised-rgb: 14 14 18;
+  --cream-deep-rgb: 9 9 11;
 
-  /* Text — warm off-white primary, tan secondaries (AA on dark surfaces) */
-  --espresso-rgb: 240 233 216; /* #F0E9D8 primary */
-  --coffee-rgb: 190 173 152; /* #BEAD98 secondary */
-  --coffee-soft-rgb: 165 147 127; /* #A5937F muted (brightened to pass WCAG AA on dark raised) */
+  --espresso-rgb: 226 232 240;
+  --coffee-rgb: 161 161 170;
+  --coffee-soft-rgb: 113 113 122;
 
-  /* Accents — same hue, brightened for dark; "deep" = brightest emphasis */
-  --olive-rgb: 154 158 102; /* #9A9E66 */
-  --olive-deep-rgb: 186 190 126; /* #BABE7E brightest */
-  --olive-soft-rgb: 130 133 88; /* #82855A */
-  --clay-rgb: 198 138 96; /* #C68A60 */
-  --clay-deep-rgb: 214 150 108; /* #D6966C readable on dark */
-  --slate-rgb: 135 170 185; /* #87AAB9 readable on dark */
+  --olive-rgb: 226 232 240;
+  --olive-deep-rgb: 255 255 255;
+  --olive-soft-rgb: 161 161 170;
+  --clay-rgb: 244 63 94;
+  --clay-deep-rgb: 225 29 72;
+  --slate-rgb: 148 163 184;
 
-  --hair: rgba(240, 233, 216, 0.14);
-  --scrim-rgb: 8 6 5;
+  --hair: rgba(255, 255, 255, 0.12);
+  --scrim-rgb: 3 3 4;
   --grain-opacity: 0.05;
-  --flow-rgb: 130 124 210; /* #827CD2 — lighter indigo readable on dark */
+  --flow-rgb: 148 163 184;
   --flow: rgb(var(--flow-rgb));
-
-  /* A touch brighter so the light lifts off the dark paper. */
-  --frame-glow: rgb(var(--olive-rgb));
+  --frame-glow: rgba(255, 255, 255, 0.2);
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    background-color: #050505;
+    color: #E2E8F0;
   }
 
   body {
     background-color: var(--cream-base);
     color: var(--espresso);
-    transition: background-color 0.3s ease, color 0.3s ease;
-    /* clip (not hidden) so full-bleed dividers can't add a horizontal
-       scrollbar while position: sticky on the header keeps working */
+    transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     overflow-x: clip;
   }
 
@@ -181,10 +178,12 @@
   100% {
     opacity: 0.04;
   }
+
+
   50% {
     opacity: 0.3;
   }
-}
+} 
 
 @keyframes frameEmberBreath {
   0%,
@@ -197,9 +196,8 @@
 }
 
 @layer utilities {
-  /* Drive Archivo's variable width axis to expanded for display type */
   .font-display {
-    font-variation-settings: "wdth" 125;
+    font-family: var(--font-display);
   }
 
   /* Entrance reveal — CSS-driven so content is visible after mount even
@@ -309,3 +307,170 @@
   box-shadow: inset 0 0 50px rgba(244, 63, 94, 0.5) !important;
   border-color: var(--clay) !important;
 }
+
+/* ==========================================================================
+   PRISM SYNTAX HIGHLIGHTING & CODE BLOCK THEMES
+   ========================================================================== */
+
+/* Outer wrapper container for markdown code blocks */
+.code-block-container {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--code-bg);
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+/* Header bar displaying language and copy button */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--hair);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.code-block-lang {
+  opacity: 0.75;
+}
+
+.copy-code-btn {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  user-select: none;
+}
+.copy-code-btn:hover {
+  opacity: 1;
+}
+
+/* Custom Editorial theme */
+.code-theme-editorial {
+  --code-bg: var(--cream-deep);
+  --code-header-bg: rgba(90, 69, 52, 0.05);
+  --code-text: var(--espresso);
+  --code-comment: var(--coffee-soft);
+  --code-keyword: var(--clay-deep);
+  --code-string: var(--olive-deep);
+  --code-number: var(--clay-deep);
+  --code-function: var(--slate);
+  --code-operator: var(--coffee);
+  --code-variable: var(--espresso);
+  --code-punctuation: var(--coffee);
+}
+.code-theme-editorial .code-block-header {
+  background-color: var(--code-header-bg);
+  color: var(--coffee);
+}
+.code-theme-editorial .copy-code-btn:hover {
+  color: var(--olive-deep);
+}
+
+/* Custom Midnight theme */
+.code-theme-midnight {
+  --code-bg: #0f1015;
+  --code-header-bg: #161822;
+  --code-text: #abb2bf;
+  --code-comment: #5c6370;
+  --code-keyword: #c678dd;
+  --code-string: #98c379;
+  --code-number: #d19a66;
+  --code-function: #61afef;
+  --code-operator: #56b6c2;
+  --code-variable: #e06c75;
+  --code-punctuation: #abb2bf;
+}
+.code-theme-midnight .code-block-header {
+  background-color: var(--code-header-bg);
+  color: #8a909e;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+.code-theme-midnight .copy-code-btn:hover {
+  color: #fff;
+}
+.code-theme-midnight.code-block-container {
+  border-color: #242738;
+}
+
+/* Code block pre styles */
+.code-block-container pre {
+  margin: 0 !important;
+  padding: 12px 14px !important;
+  background-color: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Prism syntax tokens styling */
+.code-block-container .token.comment,
+.code-block-container .token.prolog,
+.code-block-container .token.doctype,
+.code-block-container .token.cdata {
+  color: var(--code-comment) !important;
+  font-style: italic;
+}
+
+.code-block-container .token.punctuation {
+  color: var(--code-punctuation) !important;
+}
+
+.code-block-container .token.property,
+.code-block-container .token.tag,
+.code-block-container .token.boolean,
+.code-block-container .token.number,
+.code-block-container .token.constant,
+.code-block-container .token.symbol,
+.code-block-container .token.deleted {
+  color: var(--code-number) !important;
+}
+
+.code-block-container .token.selector,
+.code-block-container .token.attr-name,
+.code-block-container .token.string,
+.code-block-container .token.char,
+.code-block-container .token.builtin,
+.code-block-container .token.inserted {
+  color: var(--code-string) !important;
+}
+
+.code-block-container .token.operator,
+.code-block-container .token.entity,
+.code-block-container .token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--code-operator) !important;
+}
+
+.code-block-container .token.atrule,
+.code-block-container .token.attr-value,
+.code-block-container .token.keyword {
+  color: var(--code-keyword) !important;
+  font-weight: bold;
+}
+
+.code-block-container .token.function,
+.code-block-container .token.class-name {
+  color: var(--code-function) !important;
+}
+
+.code-block-container .token.regex,
+.code-block-container .token.important,
+.code-block-container .token.variable {
+  color: var(--code-variable) !important;
+}
+
+.code-block-container .token.bold {
+  font-weight: bold;
+}
+.code-block-container .token.italic {
+  font-style: italic;
+}
+

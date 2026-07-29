@@ -36,7 +36,7 @@ export function CartographySection() {
         >
           <div className="label mb-3 text-coffee">Cartography of effort</div>
           <h2
-            className="font-display text-[clamp(1.75rem,6vw,4rem)] font-extrabold leading-[1.0] tracking-tightest text-espresso"
+            className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-espresso"
             data-trail-node
           >
             Every day you keep

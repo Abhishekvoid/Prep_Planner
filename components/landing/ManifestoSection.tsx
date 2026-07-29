@@ -56,7 +56,7 @@ export function ManifestoSection() {
           {LINES.map((line) => (
             <p
               key={line}
-              className="text-balance py-8 font-display text-2xl font-bold tracking-tightest text-espresso sm:text-4xl"
+              className="text-balance py-8 font-display text-2xl font-bold tracking-tight text-espresso sm:text-3xl"
               data-trail-node
             >
               {line}
@@ -84,7 +84,7 @@ export function ManifestoSection() {
             transition={{ duration: 0.5, ease: EASE_OUT_EXPO }}
           >
             <p
-              className="max-w-4xl text-balance text-center font-display text-[clamp(1.75rem,6vw,4.5rem)] font-extrabold leading-[1.02] tracking-tightest text-espresso"
+              className="max-w-3xl text-balance text-center font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-espresso"
               data-trail-node
             >
               {LINES[active]}

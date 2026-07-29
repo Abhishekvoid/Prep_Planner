@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Task } from "@/lib/types";
 import { usePlanner } from "@/lib/store";
 import { DifficultyChip } from "./primitives";
 import { EASE_OUT_EXPO, spring } from "@/lib/motion";
 import { playStamp } from "@/lib/sound";
+import { useToast } from "./system/Toaster";
+import { useCelebrate } from "./system/Celebration";
 
 export function TaskItem({
   task,
@@ -23,6 +25,10 @@ export function TaskItem({
   const setView = usePlanner((s) => s.setActiveView);
   const setActiveNoteId = usePlanner((s) => s.setActiveNoteId);
 
+  const { toast } = useToast();
+  const celebrate = useCelebrate();
+  const checkboxRef = useRef<HTMLButtonElement>(null);
+
   // Find note linked to this specific task
   const linkedNote = notes.find((n) => n.taskId === task.id);
 
@@ -30,11 +36,28 @@ export function TaskItem({
   const [burst, setBurst] = useState(0);
 
   const onToggle = () => {
-    if (!task.done) {
+    const completing = !task.done;
+    if (completing) {
       setBurst((b) => b + 1);
       playStamp(); // no-op unless interface cues are enabled
     }
     toggle(task.id);
+
+    // Milestone: this completion just finished the task's whole day.
+    if (completing && task.dayId) {
+      const st = usePlanner.getState();
+      const dayTasks = st.tasks.filter((t) => t.dayId === task.dayId);
+      if (dayTasks.length > 1 && dayTasks.every((t) => t.done)) {
+        const day = st.days.find((d) => d.id === task.dayId);
+        const rect = checkboxRef.current?.getBoundingClientRect();
+        celebrate(rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : undefined);
+        toast({
+          tone: "success",
+          title: day ? `Day ${day.index} complete` : "Day complete",
+          desc: day?.title ? `${day.title}: every task done.` : "Every task done.",
+        });
+      }
+    }
   };
 
   const handleOpenNote = (e: React.MouseEvent) => {
@@ -53,9 +76,37 @@ export function TaskItem({
     setView("notes");
   };
 
+  const handleOpenMasterclass = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let topicId = "btree-index";
+    const textLower = task.text.toLowerCase();
+    if (textLower.includes("b-tree") || textLower.includes("btree")) {
+      topicId = "btree-index";
+    } else if (textLower.includes("composite")) {
+      topicId = "composite-index";
+    } else if (textLower.includes("explain")) {
+      topicId = "explain-analyze";
+    } else if (textLower.includes("select_related") || textLower.includes("prefetch_related") || textLower.includes("django")) {
+      topicId = "django-select-prefetch";
+    } else if (task.dayId === "day-2") {
+      topicId = "btree-index";
+    } else if (task.dayId === "day-1") {
+      topicId = "django-select-prefetch";
+    } else {
+      topicId = task.id;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("open-staff-masterclass", {
+        detail: { topicId, title: task.text },
+      })
+    );
+  };
+
   return (
     <div className="group flex items-start gap-3 py-2.5 border-b hairline last:border-b-0">
       <motion.button
+        ref={checkboxRef}
         onClick={onToggle}
         role="checkbox"
         aria-checked={task.done}
@@ -101,42 +152,35 @@ export function TaskItem({
         )}
       </motion.button>
 
-      <button
-        onClick={onToggle}
-        className="min-w-0 flex-1 text-left"
-        aria-hidden
-        tabIndex={-1}
-      >
+      <div className="min-w-0 flex-1 text-left">
         <span
-          className={`relative inline text-[13.5px] leading-relaxed transition-colors duration-300 ${
-            task.done ? "text-coffee/55" : "text-espresso"
-          }`}
+          onClick={handleOpenMasterclass}
+          className={`block cursor-pointer transition-colors ${task.done ? "text-coffee/50 line-through" : "text-espresso"}`}
         >
           {task.text}
-          <motion.span
-            aria-hidden
-            className="absolute left-0 top-1/2 h-px bg-coffee/55 origin-left"
-            initial={false}
-            animate={{ scaleX: task.done ? 1 : 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            style={{ width: "100%" }}
-          />
         </span>
-        {linkedNote && (
-          <button
-            onClick={handleOpenNote}
-            title={`Open linked note: ${linkedNote.title}`}
-            className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 border border-olive/35 bg-olive/[0.04] text-[9.5px] text-olive-deep font-mono font-bold rounded-sm select-none hover:bg-olive/10 transition-colors"
-          >
-            📄 note
-          </button>
-        )}
         {task.tip && (
           <span className="mt-0.5 block text-[12px] italic leading-snug text-coffee">
             {task.tip}
           </span>
         )}
-      </button>
+        <div className="mt-2 flex items-center gap-2">
+            {linkedNote && (
+            <button
+                onClick={handleOpenNote}
+                className="text-[11px] font-bold text-olive hover:underline"
+            >
+                View Note
+            </button>
+            )}
+            <button
+            onClick={handleOpenMasterclass}
+            className="text-[11px] font-bold text-amber-700 hover:underline"
+            >
+            Masterclass
+            </button>
+        </div>
+      </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
         {task.difficulty && <DifficultyChip d={task.difficulty} />}

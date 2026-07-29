@@ -52,16 +52,35 @@ export function GoalsView() {
 
   return (
     <div>
-      <div className="flex items-end justify-between pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-3 pb-5">
         <div>
           <div className="label text-coffee mb-1">Tracks</div>
           <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tightest text-espresso">
             Your goals
           </h1>
         </div>
-        <Button variant="solid" onClick={() => setTrackModal({ open: true })}>
-          + New track
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const openTrack = tracks.find((t) => t.id === openId) || tracks[0];
+              window.dispatchEvent(
+                new CustomEvent("open-ai-mentor", {
+                  detail: {
+                    topicId: openTrack?.id || "general-backend",
+                    title: openTrack?.name || "Backend Engineering Goals",
+                    day: 1,
+                  },
+                })
+              );
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-500 hover:bg-amber-500/20 transition-all shadow-sm"
+          >
+            🔥 Grill Me with AI Mentor
+          </button>
+          <Button variant="solid" onClick={() => setTrackModal({ open: true })}>
+            + New track
+          </Button>
+        </div>
       </div>
 
       <SectionDivider />

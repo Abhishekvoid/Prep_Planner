@@ -8,6 +8,7 @@ import { GoalsView } from "./GoalsView";
 import { ProgressView } from "./ProgressView";
 import { FocusView } from "./FocusView";
 import { NotesView } from "./NotesView";
+import { MentorView } from "./MentorView";
 import { BackupPanel } from "./BackupPanel";
 import { Modal } from "./primitives";
 import { ThemeToggle } from "./ThemeToggle";
@@ -20,10 +21,11 @@ import { ToastProvider } from "./system/Toaster";
 import { CelebrationProvider } from "./system/Celebration";
 import { useGlobalShortcuts } from "@/lib/useGlobalShortcuts";
 import { playTurn } from "@/lib/sound";
+import { useMentorStore } from "@/lib/mentorStore";
 
-type View = "today" | "goals" | "progress" | "focus" | "notes";
+type View = "today" | "goals" | "progress" | "focus" | "notes" | "mentor";
 
-const ORDER: View[] = ["today", "goals", "progress", "focus", "notes"];
+const ORDER: View[] = ["today", "goals", "progress", "focus", "notes", "mentor"];
 
 import { FDETopicDrawer } from "./system/FDETopicDrawer";
 import { StaffMasterclassDeck } from "./system/StaffMasterclassDeck";
@@ -58,11 +60,25 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
       }
     };
 
+    const handleOpenAIMentor = (e: Event) => {
+      const customEvent = e as CustomEvent<{ topicId?: string; title?: string; day?: number }>;
+      if (customEvent.detail?.topicId) {
+        useMentorStore.getState().setActiveTopic(customEvent.detail.topicId, {
+          id: customEvent.detail.topicId,
+          title: customEvent.detail.title,
+          sprintDay: customEvent.detail.day,
+        });
+      }
+      changeView("mentor");
+    };
+
     window.addEventListener("open-fde-topic", handleOpenTopic);
     window.addEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+    window.addEventListener("open-ai-mentor", handleOpenAIMentor);
     return () => {
       window.removeEventListener("open-fde-topic", handleOpenTopic);
       window.removeEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+      window.removeEventListener("open-ai-mentor", handleOpenAIMentor);
     };
   }, []);
 
@@ -97,7 +113,7 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
       <main
         ref={mainRef}
         tabIndex={-1}
-        className="mx-auto w-full max-w-5xl px-5 pb-24 pt-8 sm:px-8 focus:outline-none"
+        className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6 focus:outline-none"
       >
         {!ready ? (
           <Skeleton />
@@ -108,6 +124,7 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
             {view === "progress" && <ProgressView />}
             {view === "focus" && <FocusView />}
             {view === "notes" && <NotesView />}
+            {view === "mentor" && <MentorView />}
           </ViewTransition>
         )}
       </main>

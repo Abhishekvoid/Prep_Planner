@@ -81,21 +81,38 @@ export function FDETopicDrawer({ topicId, onClose, onSelectTopic }: Props) {
                 {topic.title}
               </h2>
 
-              {/* 3-Tab Selector */}
-              <div className="flex gap-1.5 mt-4 bg-zinc-950 p-1 rounded border border-white/10">
-                {(["concept", "code", "gotchas"] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setActiveTab(t)}
-                    className={`flex-1 py-1.5 rounded font-mono text-[11px] uppercase transition-all ${
-                      activeTab === t
-                        ? "bg-slate-200 text-black font-bold shadow"
-                        : "text-zinc-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {t === "concept" ? "[1] 0-to-1 Concept" : t === "code" ? "[2] Code Snippet" : "[3] Interview Gotchas"}
-                  </button>
-                ))}
+              {/* 3-Tab Selector + AI Mentor Launch */}
+              <div className="flex flex-wrap items-center gap-2 mt-4">
+                <div className="flex-1 flex gap-1.5 bg-zinc-950 p-1 rounded border border-white/10">
+                  {(["concept", "code", "gotchas"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setActiveTab(t)}
+                      className={`flex-1 py-1.5 rounded font-mono text-[11px] uppercase transition-all ${
+                        activeTab === t
+                          ? "bg-slate-200 text-black font-bold shadow"
+                          : "text-zinc-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {t === "concept" ? "[1] 0-to-1 Concept" : t === "code" ? "[2] Code Snippet" : "[3] Interview Gotchas"}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => {
+                    onClose();
+                    window.dispatchEvent(
+                      new CustomEvent("open-ai-mentor", {
+                        detail: { topicId: topic.id, title: topic.title, day: topic.dayIndex },
+                      })
+                    );
+                  }}
+                  className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 text-xs font-mono font-bold px-3 py-1.5 rounded transition-all"
+                  title="Launch AI Senior Mentor Socratic Grill for this topic"
+                >
+                  <span>🔥 Grill Me with AI</span>
+                </button>
               </div>
             </div>
 

@@ -58,13 +58,13 @@ export async function POST(req: NextRequest) {
     let endpoint = "https://api.openai.com/v1/chat/completions";
     let selectedModel = model || "gpt-4o-mini";
 
-    if (customApiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
+    if (apiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       selectedModel = model || "gemini-1.5-pro";
-    } else if (customApiKey?.startsWith("gsk_") || (envGroq && !customApiKey) || provider === "groq") {
+    } else if (apiKey?.startsWith("gsk_") || (envGroq && !customApiKey) || provider === "groq") {
       endpoint = "https://api.groq.com/openai/v1/chat/completions";
       selectedModel = model || "llama-3.3-70b-versatile";
-    } else if (customApiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
+    } else if (apiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
       endpoint = "https://openrouter.ai/api/v1/chat/completions";
       selectedModel = model || "meta-llama/llama-3.3-70b-instruct";
     }

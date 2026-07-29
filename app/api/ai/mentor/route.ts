@@ -60,7 +60,11 @@ export async function POST(req: NextRequest) {
 
     if (apiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
       endpoint = "https://openrouter.ai/api/v1/chat/completions";
-      selectedModel = model || "google/gemini-2.0-flash-exp:free";
+      const defaultForMode =
+        mode === "code-review"
+          ? "nvidia/nemotron-3-ultra-550b-a55b:free"
+          : "deepseek/deepseek-v4-flash:free";
+      selectedModel = (!model || model === "auto") ? defaultForMode : model;
     } else if (apiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       selectedModel = model || "gemini-1.5-pro";

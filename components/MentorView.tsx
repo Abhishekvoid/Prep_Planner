@@ -323,12 +323,29 @@ export function MentorView() {
                   onChange={(e) => setProvider(e.target.value as any)}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-cream"
                 >
-                  <option value="gemini">Google Gemini (gemini-1.5-pro / 2.0-flash)</option>
+                  <option value="openrouter">OpenRouter (DeepSeek / Nemotron / Qwen / Gemini)</option>
                   <option value="groq">Groq (llama-3.3-70b-versatile)</option>
-                  <option value="openrouter">OpenRouter (Multiple Models)</option>
+                  <option value="gemini">Google Gemini (gemini-1.5-pro / 2.0-flash)</option>
                   <option value="openai">OpenAI (gpt-4o-mini / gpt-4o)</option>
                 </select>
               </div>
+
+              {provider === "openrouter" && (
+                <div>
+                  <label className="text-xs font-medium text-cream/70">Model Assignment</label>
+                  <select
+                    value={selectedModel || "auto"}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-cream"
+                  >
+                    <option value="auto">⚡ Auto-Switch (DeepSeek v4 Flash for Reasoning, Nemotron 3 550B for Coding)</option>
+                    <option value="deepseek/deepseek-v4-flash:free">deepseek/deepseek-v4-flash:free (Reasoning)</option>
+                    <option value="nvidia/nemotron-3-ultra-550b-a55b:free">nvidia/nemotron-3-ultra-550b-a55b:free (Coding & Intelligence)</option>
+                    <option value="google/gemini-2.0-flash-exp:free">google/gemini-2.0-flash-exp:free</option>
+                    <option value="qwen/qwen-2.5-coder-32b-instruct:free">qwen/qwen-2.5-coder-32b-instruct:free</option>
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-medium text-cream/70">Custom API Key</label>

@@ -25,6 +25,7 @@ interface MentorState {
   activeMode: MentorMode;
   customApiKey: string;
   provider: "gemini" | "openai" | "groq" | "openrouter";
+  selectedModel: string;
 
   // Thread per topic map
   threads: Record<string, ChatMessageItem[]>;
@@ -41,7 +42,8 @@ interface MentorState {
   setActiveTopic: (id: string, context?: TopicContext) => void;
   setMode: (mode: MentorMode) => void;
   setCustomApiKey: (key: string) => void;
-  setProvider: (provider: "openai" | "groq" | "openrouter") => void;
+  setProvider: (provider: "gemini" | "openai" | "groq" | "openrouter") => void;
+  setSelectedModel: (model: string) => void;
   setCodeForReview: (code: string, language?: string) => void;
   toggleCodeDrawer: (open?: boolean) => void;
   
@@ -66,7 +68,8 @@ export const useMentorStore = create<MentorState>()(
       },
       activeMode: "grill",
       customApiKey: "",
-      provider: "openai",
+      provider: "openrouter",
+      selectedModel: "google/gemini-2.0-flash-exp:free",
 
       threads: {
         "general-backend": [
@@ -107,6 +110,7 @@ export const useMentorStore = create<MentorState>()(
       setMode: (activeMode) => set({ activeMode }),
       setCustomApiKey: (customApiKey) => set({ customApiKey }),
       setProvider: (provider) => set({ provider }),
+      setSelectedModel: (selectedModel) => set({ selectedModel }),
 
       setCodeForReview: (codeForReview, codeLanguage = "typescript") =>
         set({ codeForReview, codeLanguage }),

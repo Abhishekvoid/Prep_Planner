@@ -54,11 +54,13 @@ export function MentorView() {
     threads,
     customApiKey,
     provider,
+    selectedModel,
     isStreaming,
     setActiveTopic,
     setMode,
     setCustomApiKey,
     setProvider,
+    setSelectedModel,
     addMessage,
     appendToLastMessage,
     setLastMessageContent,
@@ -110,6 +112,7 @@ export function MentorView() {
           topicContext: activeTopicContext || { id: activeTopicId },
           apiKey: customApiKey,
           provider,
+          model: selectedModel,
         }),
       });
 

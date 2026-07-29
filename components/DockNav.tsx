@@ -93,7 +93,7 @@ export function DockNav({ view, setView }: { view: View; setView: (v: View) => v
             transition={{ type: "spring", stiffness: 340, damping: 30, mass: 0.8 }}
             onMouseMove={(e) => !alwaysOn && mouseX.set(e.clientX)}
             onMouseLeave={() => mouseX.set(Infinity)}
-            className="pointer-events-auto flex items-end gap-1.5 rounded-2xl border border-coffee/20 bg-cream-raised/80 px-2.5 py-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+            className="pointer-events-auto flex items-end gap-1.5 rounded-full border border-white/15 bg-[#050505]/90 px-3 py-2 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
           >
             {ENTRIES.map((e) => (
               <DockItem
@@ -118,7 +118,7 @@ export function DockNav({ view, setView }: { view: View; setView: (v: View) => v
             onFocus={() => setRevealed(true)}
             className="pointer-events-auto group flex items-center justify-center py-1.5"
           >
-            <span className="h-1.5 w-24 rounded-full bg-coffee/25 transition-colors group-hover:bg-coffee/50" />
+            <span className="h-1.5 w-24 rounded-full bg-white/20 transition-colors group-hover:bg-white/50" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -162,16 +162,16 @@ function DockItem({
       onHoverEnd={() => setHovered(false)}
       className={`relative flex items-center justify-center rounded-xl border transition-colors ${
         active
-          ? "border-espresso/20 bg-espresso text-cream-raised"
-          : "border-transparent bg-cream-base/50 text-coffee hover:bg-cream-base hover:text-espresso"
+          ? "border-white bg-slate-200 text-black shadow-[0_0_12px_rgba(255,255,255,0.3)]"
+          : "border-transparent bg-white/[0.04] text-zinc-400 hover:bg-white/[0.08] hover:text-slate-200"
       }`}
     >
       <Icon size="50%" weight={active ? "fill" : "regular"} />
-      {/* moving active indicator */}
+      {/* moving active indicator dot */}
       {active && (
         <motion.span
           layoutId="dock-active-dot"
-          className="absolute -bottom-[7px] h-1 w-1 rounded-full bg-olive"
+          className="absolute -bottom-[7px] h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]"
           transition={{ type: "spring", stiffness: 400, damping: 30 }}
         />
       )}

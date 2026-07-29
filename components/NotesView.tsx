@@ -30,7 +30,7 @@ export function NotesView() {
   const tracks = state.tracks ?? [];
   const activeNoteId = state.activeNoteId;
   const setActiveNoteId = state.setActiveNoteId;
-  const codeTheme = state.codeTheme ?? "editorial";
+  const codeTheme = state.codeTheme ?? "midnight";
   const setCodeTheme = state.setCodeTheme;
 
   const [activeId, setActiveId] = useState<string | null>(null);

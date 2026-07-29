@@ -76,6 +76,33 @@ export function TaskItem({
     setView("notes");
   };
 
+  const handleOpenMasterclass = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let topicId = "btree-index";
+    const textLower = task.text.toLowerCase();
+    if (textLower.includes("b-tree") || textLower.includes("btree")) {
+      topicId = "btree-index";
+    } else if (textLower.includes("composite")) {
+      topicId = "composite-index";
+    } else if (textLower.includes("explain")) {
+      topicId = "explain-analyze";
+    } else if (textLower.includes("select_related") || textLower.includes("prefetch_related") || textLower.includes("django")) {
+      topicId = "django-select-prefetch";
+    } else if (task.dayId === "day-2") {
+      topicId = "btree-index";
+    } else if (task.dayId === "day-1") {
+      topicId = "django-select-prefetch";
+    } else {
+      topicId = task.id;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("open-staff-masterclass", {
+        detail: { topicId, title: task.text },
+      })
+    );
+  };
+
   return (
     <div className="group flex items-start gap-3 py-2.5 border-b hairline last:border-b-0">
       <motion.button
@@ -125,42 +152,35 @@ export function TaskItem({
         )}
       </motion.button>
 
-      <button
-        onClick={onToggle}
-        className="min-w-0 flex-1 text-left"
-        aria-hidden
-        tabIndex={-1}
-      >
+      <div className="min-w-0 flex-1 text-left">
         <span
-          className={`relative inline text-[13.5px] leading-relaxed transition-colors duration-300 ${
-            task.done ? "text-coffee/55" : "text-espresso"
-          }`}
+          onClick={handleOpenMasterclass}
+          className={`block cursor-pointer transition-colors ${task.done ? "text-coffee/50 line-through" : "text-espresso"}`}
         >
           {task.text}
-          <motion.span
-            aria-hidden
-            className="absolute left-0 top-1/2 h-px bg-coffee/55 origin-left"
-            initial={false}
-            animate={{ scaleX: task.done ? 1 : 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            style={{ width: "100%" }}
-          />
         </span>
-        {linkedNote && (
-          <button
-            onClick={handleOpenNote}
-            title={`Open linked note: ${linkedNote.title}`}
-            className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 border border-olive/35 bg-olive/[0.04] text-[9.5px] text-olive-deep font-mono font-bold rounded-sm select-none hover:bg-olive/10 transition-colors"
-          >
-            📄 note
-          </button>
-        )}
         {task.tip && (
           <span className="mt-0.5 block text-[12px] italic leading-snug text-coffee">
             {task.tip}
           </span>
         )}
-      </button>
+        <div className="mt-2 flex items-center gap-2">
+            {linkedNote && (
+            <button
+                onClick={handleOpenNote}
+                className="text-[11px] font-bold text-olive hover:underline"
+            >
+                View Note
+            </button>
+            )}
+            <button
+            onClick={handleOpenMasterclass}
+            className="text-[11px] font-bold text-amber-700 hover:underline"
+            >
+            Masterclass
+            </button>
+        </div>
+      </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
         {task.difficulty && <DifficultyChip d={task.difficulty} />}

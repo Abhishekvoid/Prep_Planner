@@ -167,7 +167,7 @@ export function Modal({
             transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="flex items-center justify-between border-b hairline px-5 py-4">
-              <h2 className="font-display text-lg font-bold tracking-tightest">{title}</h2>
+              <h2 className="font-display text-lg font-bold tracking-tight">{title}</h2>
               <button
                 onClick={onClose}
                 aria-label="Close"

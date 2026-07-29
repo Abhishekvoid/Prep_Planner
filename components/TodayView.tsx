@@ -20,6 +20,13 @@ import { Button, Modal, ProgressBar } from "./primitives";
 import { DayForm, TaskForm } from "./forms";
 import { PressIn } from "@/lib/kineticType";
 import { SectionDivider } from "./SectionDivider";
+import {
+  ActivityHeatmap,
+  CodeLabValidator,
+  SocraticCoachModal,
+  ProofDrawer,
+} from "./system/LearnistDeck";
+import { MustDoContractCard } from "./system/MustDoContractCard";
 
 const delay = (i: number) => ({ animationDelay: `${i * 0.06}s` });
 
@@ -45,6 +52,8 @@ export function TodayView() {
   const [dayModal, setDayModal] = useState(false);
   const [queryModal, setQueryModal] = useState(false);
   const [simQuery, setSimQuery] = useState("n1");
+  const [coachModal, setCoachModal] = useState<{ open: boolean; title: string }>({ open: false, title: "" });
+  const [proofModal, setProofModal] = useState<{ open: boolean; task?: Task }>({ open: false });
 
   if (!day) {
     return (
@@ -679,6 +688,17 @@ export function TodayView() {
         </div>
       </header>
 
+      {/* Must-Do Execution Contract: DAY DOESN'T END UNTIL YOU DO THIS */}
+      <div className="mt-6">
+        <MustDoContractCard dayId={day.id} />
+      </div>
+
+      {/* Learnist Pillars 1, 3 & 4: Activity Heatmap & Code Lab Validator */}
+      <div className="mt-6 space-y-4">
+        <ActivityHeatmap sessions={state.sessions} tasks={state.tasks} />
+        <CodeLabValidator />
+      </div>
+
       {/* Goal / Must / Focus stats */}
       <div className="mt-6 grid grid-cols-12 gap-3 items-stretch">
         {/* Main Goal Card */}
@@ -1108,6 +1128,28 @@ export function TodayView() {
       <Modal open={dayModal} onClose={() => setDayModal(false)} title="Edit day">
         <DayForm day={day} onDone={() => setDayModal(false)} />
       </Modal>
+
+      <SocraticCoachModal
+        open={coachModal.open}
+        onClose={() => setCoachModal({ open: false, title: "" })}
+        topicTitle={coachModal.title}
+      />
+
+      <ProofDrawer
+        open={proofModal.open}
+        onClose={() => setProofModal({ open: false })}
+        taskTitle={proofModal.task?.text ?? "Task Node"}
+        onSubmitProof={(proofUrl, proofType) => {
+          if (proofModal.task) {
+            state.updateTask(proofModal.task.id, {
+              done: true,
+              proven: true,
+              proofUrl,
+              proofType,
+            });
+          }
+        }}
+      />
 
       <Modal open={queryModal} onClose={() => setQueryModal(false)} title="Postgres Profiling &amp; Django Query Simulator">
         <div className="space-y-4 text-espresso max-w-xl">

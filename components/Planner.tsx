@@ -25,6 +25,9 @@ type View = "today" | "goals" | "progress" | "focus" | "notes";
 
 const ORDER: View[] = ["today", "goals", "progress", "focus", "notes"];
 
+import { FDETopicDrawer } from "./system/FDETopicDrawer";
+import { StaffMasterclassDeck } from "./system/StaffMasterclassDeck";
+
 export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
   const hasHydrated = usePlanner((s) => s.hasHydrated);
   const [mounted, setMounted] = useState(false);
@@ -33,18 +36,41 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
   const [backupOpen, setBackupOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [staffDeck, setStaffDeck] = useState<{ topicId: string | null; customTitle?: string }>({ topicId: null });
   const prevView = useRef<View>("today");
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => setMounted(true), []);
   const ready = mounted && hasHydrated;
 
+  useEffect(() => {
+    const handleOpenTopic = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setActiveTopicId(customEvent.detail);
+      }
+    };
+    const handleOpenStaffMasterclass = (e: Event) => {
+      const customEvent = e as CustomEvent<{ topicId: string; title?: string }>;
+      if (customEvent.detail?.topicId) {
+        setStaffDeck({ topicId: customEvent.detail.topicId, customTitle: customEvent.detail.title });
+      }
+    };
+
+    window.addEventListener("open-fde-topic", handleOpenTopic);
+    window.addEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+    return () => {
+      window.removeEventListener("open-fde-topic", handleOpenTopic);
+      window.removeEventListener("open-staff-masterclass", handleOpenStaffMasterclass);
+    };
+  }, []);
+
   const changeView = (next: View) => {
     if (next === view) return;
     prevView.current = view;
     setView(next);
-    playTurn(); // no-op unless interface cues are enabled
-    // Move focus into the freshly-revealed view for keyboard/SR users.
+    playTurn();
     requestAnimationFrame(() => mainRef.current?.focus());
   };
 
@@ -86,6 +112,20 @@ export function Planner({ replayIntro }: { replayIntro?: () => void } = {}) {
         )}
       </main>
 
+      {/* Global Slide-Over FDE Deck Drawer */}
+      <FDETopicDrawer
+        topicId={activeTopicId}
+        onClose={() => setActiveTopicId(null)}
+        onSelectTopic={(nextId) => setActiveTopicId(nextId)}
+      />
+
+      {/* SpaceX / OpenAI Staff Engineer Masterclass Deck */}
+      <StaffMasterclassDeck
+        topicId={staffDeck.topicId}
+        customTitle={staffDeck.customTitle}
+        onClose={() => setStaffDeck({ topicId: null })}
+      />
+
       <Modal open={backupOpen} onClose={() => setBackupOpen(false)} title="Backup & data">
         <BackupPanel onDone={() => setBackupOpen(false)} />
       </Modal>
@@ -122,36 +162,39 @@ function Header({
   replayIntro?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b hairline bg-cream-base/85 backdrop-blur-md">
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-2 md:gap-4 px-3 sm:px-8 py-3.5">
-        <div className="flex items-baseline gap-1.5 sm:gap-2">
-          <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 bg-olive" aria-hidden />
-          <span className="font-display text-sm sm:text-base font-extrabold tracking-tightest text-espresso">
-            PLANNER
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#050505]/90 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 md:gap-4 px-4 sm:px-8 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>LEARNIST // ACTIVE</span>
+          </div>
+          <span className="font-mono text-xs font-semibold tracking-wider text-slate-200 hidden sm:inline-block">
+            CODEX_ENGINEER
           </span>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <button
             onClick={onCommand}
             aria-label="Open command palette"
-            className="group flex items-center gap-1.5 rounded-md border border-coffee/25 bg-cream-raised/60 px-2 py-1 text-coffee transition-colors hover:border-coffee/40 hover:text-espresso"
+            className="group flex items-center gap-2 rounded border border-white/15 bg-white/[0.04] px-2.5 py-1 text-slate-300 transition-all hover:border-white/30 hover:bg-white/[0.08]"
           >
-            <span className="text-[11px]">Search</span>
-            <kbd className="rounded border border-coffee/25 bg-cream-base px-1 py-[1px] font-mono text-[9px] text-coffee-soft group-hover:text-coffee">⌘K</kbd>
+            <span className="text-[11px] font-mono text-zinc-400 group-hover:text-slate-200">Search Deck</span>
+            <kbd className="rounded border border-white/20 bg-zinc-900 px-1.5 py-[1px] font-mono text-[10px] text-zinc-300 group-hover:text-white">⌘K</kbd>
           </button>
           <button
             onClick={onBackup}
-            className="label text-coffee hover:text-espresso transition-colors hidden md:inline-block text-[10px] sm:text-xs"
+            className="font-mono text-[11px] text-zinc-400 hover:text-slate-200 transition-colors hidden md:inline-block px-2 py-1 rounded hover:bg-white/5"
           >
-            Backup
+            [Backup]
           </button>
           {replayIntro && (
             <button
               onClick={replayIntro}
-              className="label text-coffee hover:text-espresso transition-colors hidden md:inline-block text-[10px] sm:text-xs"
+              className="font-mono text-[11px] text-zinc-400 hover:text-slate-200 transition-colors hidden md:inline-block px-2 py-1 rounded hover:bg-white/5"
             >
-              Replay intro
+              [Replay]
             </button>
           )}
           <ThemeToggle />

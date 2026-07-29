@@ -28,7 +28,7 @@ export function EnterSection({ onOpen }: { onOpen: () => void }) {
           <span className="h-px w-8 bg-[color:var(--hair)] sm:w-12" aria-hidden />
         </div>
 
-        <h2 className="mt-5 font-display text-[clamp(2rem,7vw,4.75rem)] font-extrabold leading-[0.95] tracking-tightest text-espresso">
+        <h2 className="mt-5 font-display text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-espresso">
           Open the Almanac
         </h2>
 

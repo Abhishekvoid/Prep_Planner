@@ -36,7 +36,7 @@ const config: Config = {
         scrim: "rgb(var(--scrim-rgb) / <alpha-value>)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Satoshi", "system-ui", "sans-serif"],
         sans: ["var(--font-body)", "system-ui", "sans-serif"],
       },
       letterSpacing: {

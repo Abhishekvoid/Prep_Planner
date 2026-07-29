@@ -23,7 +23,7 @@ export function SystemSection() {
           transition={{ duration: 0.6, ease: EASE_OUT_EXPO }}
         >
           <div className="label mb-2 text-coffee">How it works</div>
-          <h2 className="font-display text-4xl font-extrabold tracking-tightest text-espresso sm:text-5xl">
+          <h2 className="font-display text-3xl font-bold tracking-tight text-espresso sm:text-4xl">
             The System
           </h2>
         </motion.header>
@@ -109,7 +109,7 @@ function Act({
       <div className={reverse ? "sm:order-2" : ""}>
         <div className="label mb-3 text-olive-deep">Act {n}</div>
         <h3
-          className="font-display text-2xl font-bold tracking-tightest text-espresso sm:text-3xl"
+          className="font-display text-2xl font-bold tracking-tight text-espresso sm:text-3xl"
           data-trail-node
         >
           {title}
@@ -129,7 +129,7 @@ function StreakStrip() {
   return (
     <div>
       <div className="flex items-baseline gap-2">
-        <span className="font-display text-5xl font-extrabold tracking-tightest tabular-nums text-espresso">
+        <span className="font-display text-4xl font-bold tracking-tight tabular-nums text-espresso">
           14
         </span>
         <span className="label text-coffee">day streak</span>

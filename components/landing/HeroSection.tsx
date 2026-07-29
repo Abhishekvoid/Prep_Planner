@@ -36,15 +36,13 @@ export function HeroSection({ onOpen }: { onOpen: () => void }) {
         </motion.div>
 
         <motion.h1
-          className="mt-5 font-display text-[clamp(2.25rem,8.5vw,5.75rem)] font-extrabold leading-[0.95] tracking-tightest text-espresso"
-          initial={{ opacity: 0, fontVariationSettings: '"wdth" 100' }}
-          animate={{ opacity: 1, fontVariationSettings: '"wdth" 125' }}
-          transition={{ duration: 1.1, ease: EASE_OUT_EXPO, delay: 0.2 }}
+          className="mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-espresso"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: EASE_OUT_EXPO, delay: 0.2 }}
           data-trail-node
         >
-          DISCIPLINE,
-          <br />
-          MADE TACTILE
+          Discipline, Made Tactile
         </motion.h1>
 
         <motion.p

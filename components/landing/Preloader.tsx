@@ -75,16 +75,15 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       <InkReveal progress={progress} className="absolute inset-0" />
       <div className="relative flex flex-col items-center gap-6">
         <span
-          className="font-display text-[clamp(2.5rem,9vw,6rem)] font-extrabold tracking-tightest text-espresso"
+          className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-espresso"
           style={{
             filter: `blur(${(1 - progress) * 10}px)`,
             opacity: 0.25 + progress * 0.75,
-            fontVariationSettings: `"wdth" ${100 + progress * 25}`,
           }}
         >
           ALMANAC
         </span>
-        <span className="font-display text-sm tabular-nums tracking-tightest text-coffee">
+        <span className="font-display text-sm tabular-nums tracking-tight text-coffee">
           {String(count).padStart(3, "0")}
         </span>
       </div>

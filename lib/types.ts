@@ -20,6 +20,9 @@ export interface Task {
   tip?: string;
   done: boolean;
   doneAt?: string;
+  proofUrl?: string;
+  proofType?: "github" | "snippet" | "diagram" | "benchmark";
+  proven?: boolean;
   order: number;
 }
 

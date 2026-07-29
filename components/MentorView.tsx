@@ -320,9 +320,10 @@ export function MentorView() {
                   onChange={(e) => setProvider(e.target.value as any)}
                   className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-xs text-cream"
                 >
-                  <option value="openai">OpenAI (gpt-4o-mini / gpt-4o)</option>
+                  <option value="gemini">Google Gemini (gemini-1.5-pro / 2.0-flash)</option>
                   <option value="groq">Groq (llama-3.3-70b-versatile)</option>
                   <option value="openrouter">OpenRouter (Multiple Models)</option>
+                  <option value="openai">OpenAI (gpt-4o-mini / gpt-4o)</option>
                 </select>
               </div>
 

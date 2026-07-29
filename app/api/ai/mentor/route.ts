@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Resolve API key
+    const envMentor = process.env.AI_MENTOR_API_KEY;
     const envOpenAI = process.env.OPENAI_API_KEY;
     const envGroq = process.env.GROQ_API_KEY;
     const envOpenRouter = process.env.OPENROUTER_API_KEY;
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
     const apiKey =
       customApiKey ||
       req.headers.get("x-api-key") ||
+      envMentor ||
       envOpenAI ||
       envGroq ||
       envOpenRouter ||
@@ -56,10 +58,13 @@ export async function POST(req: NextRequest) {
     let endpoint = "https://api.openai.com/v1/chat/completions";
     let selectedModel = model || "gpt-4o-mini";
 
-    if (customApiKey?.startsWith("gsk_") || envGroq || provider === "groq") {
+    if (customApiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+      selectedModel = model || "gemini-1.5-pro";
+    } else if (customApiKey?.startsWith("gsk_") || (envGroq && !customApiKey) || provider === "groq") {
       endpoint = "https://api.groq.com/openai/v1/chat/completions";
       selectedModel = model || "llama-3.3-70b-versatile";
-    } else if (customApiKey?.startsWith("sk-or-") || envOpenRouter || provider === "openrouter") {
+    } else if (customApiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
       endpoint = "https://openrouter.ai/api/v1/chat/completions";
       selectedModel = model || "meta-llama/llama-3.3-70b-instruct";
     }

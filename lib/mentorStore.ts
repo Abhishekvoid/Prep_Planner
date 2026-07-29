@@ -24,7 +24,7 @@ interface MentorState {
   activeTopicContext: TopicContext | null;
   activeMode: MentorMode;
   customApiKey: string;
-  provider: "openai" | "groq" | "openrouter";
+  provider: "gemini" | "openai" | "groq" | "openrouter";
 
   // Thread per topic map
   threads: Record<string, ChatMessageItem[]>;

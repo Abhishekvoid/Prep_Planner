@@ -28,19 +28,19 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Resolve API key
-    const envMentor = process.env.AI_MENTOR_API_KEY;
-    const envOpenAI = process.env.OPENAI_API_KEY;
-    const envGroq = process.env.GROQ_API_KEY;
     const envOpenRouter = process.env.OPENROUTER_API_KEY;
+    const envMentor = process.env.AI_MENTOR_API_KEY;
+    const envGroq = process.env.GROQ_API_KEY;
+    const envOpenAI = process.env.OPENAI_API_KEY;
     const envGemini = process.env.GEMINI_API_KEY;
 
     const apiKey =
       customApiKey ||
       req.headers.get("x-api-key") ||
-      envMentor ||
-      envOpenAI ||
-      envGroq ||
       envOpenRouter ||
+      envMentor ||
+      envGroq ||
+      envOpenAI ||
       envGemini;
 
     if (!apiKey) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         {
           error: "NO_API_KEY",
           message:
-            "No API key found. Please add OPENAI_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY to your .env.local file, or configure your key in the AI Mentor settings.",
+            "No API key found. Please add OPENROUTER_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY to your .env.local file, or configure your key in the AI Mentor settings.",
         },
         { status: 401 }
       );
@@ -58,15 +58,15 @@ export async function POST(req: NextRequest) {
     let endpoint = "https://api.openai.com/v1/chat/completions";
     let selectedModel = model || "gpt-4o-mini";
 
-    if (apiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
+    if (apiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
+      endpoint = "https://openrouter.ai/api/v1/chat/completions";
+      selectedModel = model || "qwen/qwen-2.5-coder-32b-instruct:free";
+    } else if (apiKey?.startsWith("AIza") || (envGemini && !customApiKey) || provider === "gemini") {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
       selectedModel = model || "gemini-1.5-pro";
     } else if (apiKey?.startsWith("gsk_") || (envGroq && !customApiKey) || provider === "groq") {
       endpoint = "https://api.groq.com/openai/v1/chat/completions";
       selectedModel = model || "llama-3.3-70b-versatile";
-    } else if (apiKey?.startsWith("sk-or-") || (envOpenRouter && !customApiKey) || provider === "openrouter") {
-      endpoint = "https://openrouter.ai/api/v1/chat/completions";
-      selectedModel = model || "meta-llama/llama-3.3-70b-instruct";
     }
 
     // Build complete message chain
